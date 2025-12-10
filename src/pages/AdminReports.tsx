@@ -4,12 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
-import { DollarSign, TrendingUp, TrendingDown, FileText, ArrowUpRight, ArrowDownRight, Minus } from "lucide-react";
+import { DollarSign, TrendingUp, TrendingDown, FileText, ArrowUpRight, ArrowDownRight, Minus, Building2 } from "lucide-react";
 import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Separator } from "@/components/ui/separator";
 
 const AdminReports = () => {
   const { user } = useAuth();
@@ -47,13 +46,14 @@ const AdminReports = () => {
   const { data: financialData, isLoading } = useQuery({
     queryKey: ["financial-data", period],
     queryFn: async () => {
-      const [sales, expenses, credits, products, customers, reconciliations] = await Promise.all([
+      const [sales, expenses, credits, products, customers, reconciliations, departments] = await Promise.all([
         localApi.sales.getAll(),
         localApi.expenses.getAll(),
         localApi.credits.getAll(),
         localApi.products.getAll(),
         localApi.customers.getAll(),
         localApi.reconciliations.getAll(),
+        localApi.departments.getAll(),
       ]);
 
       // Filter by date range
@@ -84,7 +84,6 @@ const AdminReports = () => {
 
       // Calculate Cost of Goods Sold (estimated from product cost prices)
       const costOfGoodsSold = filteredSales.reduce((sum: number, sale: any) => {
-        // Estimate COGS as 60% of revenue for simplicity
         return sum + (Number(sale.total || 0) * 0.6);
       }, 0);
 
@@ -115,6 +114,39 @@ const AdminReports = () => {
       )[0];
       const cashOnHand = latestReconciliation ? Number(latestReconciliation.reported_cash || 0) : 0;
 
+      // Department-wise breakdown
+      const departmentData = departments.map((dept: any) => {
+        const deptSales = filteredSales.filter((s: any) => s.department_id === dept.id);
+        const deptExpenses = filteredExpenses.filter((e: any) => e.department_id === dept.id);
+        const deptProducts = products.filter((p: any) => p.department_id === dept.id);
+        const deptCustomers = customers.filter((c: any) => c.department_id === dept.id);
+        
+        const revenue = deptSales.reduce((sum: number, s: any) => sum + Number(s.total || 0), 0);
+        const cash = deptSales.filter((s: any) => s.payment_method === 'cash').reduce((sum: number, s: any) => sum + Number(s.total || 0), 0);
+        const credit = deptSales.filter((s: any) => s.payment_method === 'credit').reduce((sum: number, s: any) => sum + Number(s.total || 0), 0);
+        const mobile = deptSales.filter((s: any) => ['mobile_money', 'card', 'bank'].includes(s.payment_method)).reduce((sum: number, s: any) => sum + Number(s.total || 0), 0);
+        const expenseTotal = deptExpenses.reduce((sum: number, e: any) => sum + Number(e.amount || 0), 0);
+        const cogs = revenue * 0.6;
+        const inventory = deptProducts.reduce((sum: number, p: any) => sum + (Number(p.stock || 0) * Number(p.cost_price || p.price * 0.6 || 0)), 0);
+        const receivables = deptCustomers.reduce((sum: number, c: any) => sum + Number(c.outstanding_balance || 0), 0);
+        
+        return {
+          id: dept.id,
+          name: dept.name,
+          revenue,
+          cashSales: cash,
+          creditSales: credit,
+          mobileMoneySales: mobile,
+          expenses: expenseTotal,
+          cogs,
+          grossProfit: revenue - cogs,
+          netIncome: revenue - cogs - expenseTotal,
+          inventory,
+          receivables,
+          salesCount: deptSales.length,
+        };
+      }).filter((d: any) => d.revenue > 0 || d.expenses > 0 || d.inventory > 0);
+
       return {
         // Income Statement
         totalRevenue,
@@ -138,12 +170,16 @@ const AdminReports = () => {
         
         // Cash Flow
         operatingCashFlow: cashSales - totalExpenses,
-        investingCashFlow: 0, // Would need asset purchases data
+        investingCashFlow: 0,
         financingCashFlow: totalCreditsReceivable - totalCreditsPayable,
         
         // Counts
         salesCount: filteredSales.length,
         expensesCount: filteredExpenses.length,
+        
+        // Department breakdown
+        departmentData,
+        departments,
       };
     },
   });
@@ -187,7 +223,7 @@ const AdminReports = () => {
         </div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
@@ -247,14 +283,165 @@ const AdminReports = () => {
               </p>
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Departments</CardTitle>
+              <Building2 className="w-4 h-4 text-primary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {financialData?.departmentData?.length || 0}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                with activity this period
+              </p>
+            </CardContent>
+          </Card>
         </div>
 
-        <Tabs defaultValue="income" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
+        <Tabs defaultValue="departments" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="departments">By Department</TabsTrigger>
             <TabsTrigger value="income">Income Statement</TabsTrigger>
             <TabsTrigger value="balance">Balance Sheet</TabsTrigger>
             <TabsTrigger value="cashflow">Cash Flow</TabsTrigger>
           </TabsList>
+
+          {/* Department Breakdown */}
+          <TabsContent value="departments">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Building2 className="w-5 h-5" />
+                  Financial Summary by Department
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Performance breakdown for {dateRange.label}
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Department</TableHead>
+                        <TableHead className="text-right">Revenue</TableHead>
+                        <TableHead className="text-right">COGS</TableHead>
+                        <TableHead className="text-right">Gross Profit</TableHead>
+                        <TableHead className="text-right">Expenses</TableHead>
+                        <TableHead className="text-right">Net Income</TableHead>
+                        <TableHead className="text-right">Inventory</TableHead>
+                        <TableHead className="text-right">Receivables</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {financialData?.departmentData && financialData.departmentData.length > 0 ? (
+                        <>
+                          {financialData.departmentData.map((dept: any) => (
+                            <TableRow key={dept.id}>
+                              <TableCell className="font-medium">{dept.name}</TableCell>
+                              <TableCell className="text-right text-success">{dept.revenue.toLocaleString()}</TableCell>
+                              <TableCell className="text-right text-destructive">({dept.cogs.toLocaleString()})</TableCell>
+                              <TableCell className={`text-right ${dept.grossProfit >= 0 ? 'text-success' : 'text-destructive'}`}>
+                                {dept.grossProfit.toLocaleString()}
+                              </TableCell>
+                              <TableCell className="text-right text-destructive">({dept.expenses.toLocaleString()})</TableCell>
+                              <TableCell className={`text-right font-medium ${dept.netIncome >= 0 ? 'text-success' : 'text-destructive'}`}>
+                                {dept.netIncome.toLocaleString()}
+                              </TableCell>
+                              <TableCell className="text-right">{dept.inventory.toLocaleString()}</TableCell>
+                              <TableCell className="text-right">{dept.receivables.toLocaleString()}</TableCell>
+                            </TableRow>
+                          ))}
+                          {/* Totals Row */}
+                          <TableRow className="border-t-2 bg-muted font-bold">
+                            <TableCell>TOTAL</TableCell>
+                            <TableCell className="text-right text-success">
+                              {financialData.departmentData.reduce((sum: number, d: any) => sum + d.revenue, 0).toLocaleString()}
+                            </TableCell>
+                            <TableCell className="text-right text-destructive">
+                              ({financialData.departmentData.reduce((sum: number, d: any) => sum + d.cogs, 0).toLocaleString()})
+                            </TableCell>
+                            <TableCell className={`text-right ${financialData.grossProfit >= 0 ? 'text-success' : 'text-destructive'}`}>
+                              {financialData.departmentData.reduce((sum: number, d: any) => sum + d.grossProfit, 0).toLocaleString()}
+                            </TableCell>
+                            <TableCell className="text-right text-destructive">
+                              ({financialData.departmentData.reduce((sum: number, d: any) => sum + d.expenses, 0).toLocaleString()})
+                            </TableCell>
+                            <TableCell className={`text-right ${financialData.netIncome >= 0 ? 'text-success' : 'text-destructive'}`}>
+                              {financialData.departmentData.reduce((sum: number, d: any) => sum + d.netIncome, 0).toLocaleString()}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {financialData.departmentData.reduce((sum: number, d: any) => sum + d.inventory, 0).toLocaleString()}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {financialData.departmentData.reduce((sum: number, d: any) => sum + d.receivables, 0).toLocaleString()}
+                            </TableCell>
+                          </TableRow>
+                        </>
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                            No department data available for this period
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                {/* Revenue Breakdown by Payment Method per Department */}
+                {financialData?.departmentData && financialData.departmentData.length > 0 && (
+                  <div className="mt-8">
+                    <h3 className="font-semibold mb-4">Revenue by Payment Method</h3>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Department</TableHead>
+                          <TableHead className="text-right">Cash</TableHead>
+                          <TableHead className="text-right">Credit</TableHead>
+                          <TableHead className="text-right">Mobile/Card</TableHead>
+                          <TableHead className="text-right">Total</TableHead>
+                          <TableHead className="text-right">Transactions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {financialData.departmentData.map((dept: any) => (
+                          <TableRow key={dept.id}>
+                            <TableCell className="font-medium">{dept.name}</TableCell>
+                            <TableCell className="text-right">{dept.cashSales.toLocaleString()}</TableCell>
+                            <TableCell className="text-right">{dept.creditSales.toLocaleString()}</TableCell>
+                            <TableCell className="text-right">{dept.mobileMoneySales.toLocaleString()}</TableCell>
+                            <TableCell className="text-right font-medium">{dept.revenue.toLocaleString()}</TableCell>
+                            <TableCell className="text-right">{dept.salesCount}</TableCell>
+                          </TableRow>
+                        ))}
+                        <TableRow className="border-t-2 bg-muted font-bold">
+                          <TableCell>TOTAL</TableCell>
+                          <TableCell className="text-right">
+                            {financialData.departmentData.reduce((sum: number, d: any) => sum + d.cashSales, 0).toLocaleString()}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {financialData.departmentData.reduce((sum: number, d: any) => sum + d.creditSales, 0).toLocaleString()}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {financialData.departmentData.reduce((sum: number, d: any) => sum + d.mobileMoneySales, 0).toLocaleString()}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {financialData.departmentData.reduce((sum: number, d: any) => sum + d.revenue, 0).toLocaleString()}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {financialData.departmentData.reduce((sum: number, d: any) => sum + d.salesCount, 0)}
+                          </TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           {/* Income Statement */}
           <TabsContent value="income">
