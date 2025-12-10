@@ -815,3 +815,156 @@ export const stockApi = {
     };
   }
 };
+
+// ============= RECONCILIATIONS =============
+export const reconciliationsApi = {
+  getAll: async (params?: { departmentId?: string; startDate?: string; endDate?: string; status?: string }) => {
+    let query = supabase.from('reconciliations').select('*').order('date', { ascending: false });
+    if (params?.departmentId) query = query.eq('department_id', params.departmentId);
+    if (params?.startDate) query = query.gte('date', params.startDate);
+    if (params?.endDate) query = query.lte('date', params.endDate);
+    if (params?.status) query = query.eq('status', params.status);
+    const { data, error } = await query;
+    if (error) throw error;
+    return data;
+  },
+
+  create: async (reconciliation: any) => {
+    const { data, error } = await supabase
+      .from('reconciliations')
+      .insert(reconciliation)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  update: async (id: string, reconciliation: any) => {
+    const { data, error } = await supabase
+      .from('reconciliations')
+      .update(reconciliation)
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  }
+};
+
+// ============= SUSPENDED REVENUE =============
+export const suspendedRevenueApi = {
+  getAll: async (departmentId?: string) => {
+    let query = supabase.from('suspended_revenue').select('*').order('created_at', { ascending: false });
+    if (departmentId) query = query.eq('department_id', departmentId);
+    const { data, error } = await query;
+    if (error) throw error;
+    return data;
+  },
+
+  create: async (record: any) => {
+    const { data, error } = await supabase
+      .from('suspended_revenue')
+      .insert(record)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  update: async (id: string, record: any) => {
+    const { data, error } = await supabase
+      .from('suspended_revenue')
+      .update(record)
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  }
+};
+
+// ============= INTERNAL USAGE =============
+export const internalUsageApi = {
+  getAll: async (departmentId?: string) => {
+    let query = supabase.from('internal_stock_usage').select('*, products(name, unit), departments:department_id(name)').order('created_at', { ascending: false });
+    if (departmentId) query = query.eq('department_id', departmentId);
+    const { data, error } = await query;
+    if (error) throw error;
+    return data;
+  },
+
+  create: async (usage: any) => {
+    const { data, error } = await supabase
+      .from('internal_stock_usage')
+      .insert(usage)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  updateStatus: async (id: string, status: string) => {
+    const { data, error } = await supabase
+      .from('internal_stock_usage')
+      .update({ status })
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  }
+};
+
+// ============= SUPPLIERS =============
+export const suppliersApi = {
+  getAll: async () => {
+    const { data, error } = await supabase
+      .from('suppliers')
+      .select('*')
+      .order('name');
+    if (error) throw error;
+    return data;
+  },
+
+  create: async (supplier: any) => {
+    const { data, error } = await supabase
+      .from('suppliers')
+      .insert(supplier)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  update: async (id: string, supplier: any) => {
+    const { data, error } = await supabase
+      .from('suppliers')
+      .update(supplier)
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  delete: async (id: string) => {
+    const { error } = await supabase
+      .from('suppliers')
+      .delete()
+      .eq('id', id);
+    if (error) throw error;
+  }
+};
+
+// ============= INTERDEPARTMENTAL INBOX =============
+export const interdepartmentalInboxApi = {
+  create: async (message: any) => {
+    const { data, error } = await supabase
+      .from('interdepartmental_inbox')
+      .insert(message)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  }
+};

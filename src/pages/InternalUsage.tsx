@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { localApi } from "@/lib/localApi";
+import { supabase } from "@/integrations/supabase/client";
 import { useDepartment } from "@/contexts/DepartmentContext";
 import { useUserRole } from "@/hooks/useUserRole";
 import { DepartmentSelector } from "@/components/DepartmentSelector";
@@ -54,14 +54,20 @@ const InternalUsage = () => {
     queryKey: ["products-for-usage", selectedDepartmentId],
     queryFn: async () => {
       if (!selectedDepartmentId) return [];
-      const data = await localApi.products.getAll(selectedDepartmentId);
-      return data;
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .eq('department_id', selectedDepartmentId)
+        .eq('is_active', true)
+        .order('name');
+      if (error) throw error;
+      return data || [];
     },
     enabled: !!selectedDepartmentId,
   });
 
   const selectedProduct = products?.find((p) => p.id === formData.product_id);
-  const isPerfumeProduct = selectedProduct?.tracking_type === 'milliliter';
+  const isPerfumeProduct = selectedProduct?.tracking_type === 'ml';
   const isPerfumeDept = selectedDepartment?.is_perfume_department;
 
   // Fetch internal usage records
@@ -69,8 +75,13 @@ const InternalUsage = () => {
     queryKey: ["internal-usage", selectedDepartmentId],
     queryFn: async () => {
       if (!selectedDepartmentId) return [];
-      const data = await localApi.internalUsage.getAll(selectedDepartmentId);
-      return data;
+      const { data, error } = await supabase
+        .from('internal_stock_usage')
+        .select('*, products(name, unit)')
+        .eq('department_id', selectedDepartmentId)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
     },
     enabled: !!selectedDepartmentId,
   });
@@ -81,35 +92,28 @@ const InternalUsage = () => {
       const product = products?.find((p) => p.id === data.product_id);
       if (!product) throw new Error("Product not found");
 
-      const isPerfumeTracking = product.tracking_type === 'milliliter';
+      const isPerfumeTracking = product.tracking_type === 'ml';
       const quantity = isPerfumeTracking ? Number(data.ml_quantity) : Number(data.quantity);
       
       if (!quantity || quantity <= 0) {
         throw new Error("Please enter a valid quantity");
       }
 
-      // Calculate value based on tracking type
-      let totalValue: number;
-      let unitValue: number;
-      
-      if (isPerfumeTracking) {
-        unitValue = Number(product.retail_price_per_ml) || Number(product.selling_price_per_ml) || 0;
-        totalValue = quantity * unitValue;
-      } else {
-        unitValue = Number(product.selling_price);
-        totalValue = quantity * unitValue;
-      }
-
-      await localApi.internalUsage.create({
-        product_id: data.product_id,
-        department_id: selectedDepartmentId,
-        quantity: quantity,
-        unit_value: unitValue,
-        total_value: totalValue,
-        reason: data.reason,
-        notes: data.notes,
-        usage_date: new Date().toISOString().split('T')[0],
-      });
+      const { data: result, error } = await supabase
+        .from('internal_stock_usage')
+        .insert({
+          product_id: data.product_id,
+          department_id: selectedDepartmentId,
+          quantity: quantity,
+          ml_quantity: isPerfumeTracking ? quantity : null,
+          reason: data.reason,
+          notes: data.notes,
+          status: 'pending',
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      return result;
     },
     onSuccess: () => {
       toast.success("Internal usage recorded successfully");
@@ -126,14 +130,21 @@ const InternalUsage = () => {
   // Update status mutation
   const updateStatusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      await localApi.internalUsage.updateStatus(id, status);
+      const { data, error } = await supabase
+        .from('internal_stock_usage')
+        .update({ status })
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
     },
     onSuccess: () => {
       toast.success("Status updated successfully");
       queryClient.invalidateQueries({ queryKey: ["internal-usage"] });
     },
     onError: () => {
-      // Silent fail for not implemented
+      toast.error("Failed to update status");
     },
   });
 
@@ -149,16 +160,23 @@ const InternalUsage = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "recorded":
+      case "pending":
         return "default";
-      case "accounted":
+      case "approved":
         return "secondary";
-      case "adjusted":
-        return "outline";
+      case "rejected":
+        return "destructive";
       default:
         return "default";
     }
   };
+
+  // Calculate totals
+  const totalValue = usageRecords?.reduce((sum, record) => {
+    const product = products?.find(p => p.id === record.product_id);
+    const price = product?.price || product?.retail_price || 0;
+    return sum + (Number(record.quantity) * Number(price));
+  }, 0) || 0;
 
   return (
     <div className="min-h-screen bg-background pb-16 sm:pb-20 pt-32 lg:pt-20">
@@ -202,9 +220,9 @@ const InternalUsage = () => {
                     <SelectContent>
                       {products?.map((product) => (
                         <SelectItem key={product.id} value={product.id}>
-                          {product.name} (Stock: {product.tracking_type === 'milliliter' 
-                            ? `${product.current_stock_ml || 0} ml` 
-                            : `${product.current_stock || 0} ${product.unit}`})
+                          {product.name} (Stock: {product.tracking_type === 'ml' 
+                            ? `${product.total_ml || 0} ml` 
+                            : `${product.stock || 0} ${product.unit || 'units'}`})
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -226,7 +244,7 @@ const InternalUsage = () => {
                       placeholder="Enter milliliters"
                     />
                     <p className="text-xs text-muted-foreground mt-1">
-                      Available: {selectedProduct?.current_stock_ml || 0} ml
+                      Available: {selectedProduct?.total_ml || 0} ml
                     </p>
                   </div>
                 ) : (
@@ -243,7 +261,7 @@ const InternalUsage = () => {
                       placeholder="Enter quantity"
                     />
                     <p className="text-xs text-muted-foreground mt-1">
-                      Available: {selectedProduct?.current_stock || 0} {selectedProduct?.unit}
+                      Available: {selectedProduct?.stock || 0} {selectedProduct?.unit || 'units'}
                     </p>
                   </div>
                 )}
@@ -336,12 +354,9 @@ const InternalUsage = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                UGX{" "}
-                {usageRecords
-                  ?.reduce((sum, record) => sum + Number(record.total_value), 0)
-                  .toLocaleString() || 0}
+                UGX {totalValue.toLocaleString()}
               </div>
-              <p className="text-xs text-muted-foreground">Cumulative cost</p>
+              <p className="text-xs text-muted-foreground">Estimated cost</p>
             </CardContent>
           </Card>
           <Card>
@@ -350,9 +365,9 @@ const InternalUsage = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {usageRecords?.filter((r) => r.status === "recorded").length || 0}
+                {usageRecords?.filter((r) => r.status === "pending").length || 0}
               </div>
-              <p className="text-xs text-muted-foreground">Awaiting accounting</p>
+              <p className="text-xs text-muted-foreground">Awaiting approval</p>
             </CardContent>
           </Card>
         </div>
@@ -369,9 +384,7 @@ const InternalUsage = () => {
                   <TableRow>
                     <TableHead>Date</TableHead>
                     <TableHead>Product</TableHead>
-                    <TableHead>Department</TableHead>
                     <TableHead>Quantity</TableHead>
-                    <TableHead>Value</TableHead>
                     <TableHead>Reason</TableHead>
                     <TableHead>Status</TableHead>
                     {isAdmin && <TableHead>Actions</TableHead>}
@@ -380,7 +393,7 @@ const InternalUsage = () => {
                 <TableBody>
                   {usageRecords?.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={isAdmin ? 8 : 7} className="text-center py-8">
+                      <TableCell colSpan={isAdmin ? 6 : 5} className="text-center py-8">
                         <Package className="w-12 h-12 mx-auto text-muted-foreground mb-2" />
                         <p className="text-muted-foreground">No usage records yet</p>
                       </TableCell>
@@ -389,19 +402,13 @@ const InternalUsage = () => {
                     usageRecords?.map((record) => (
                       <TableRow key={record.id}>
                         <TableCell className="text-xs sm:text-sm">
-                          {new Date(record.usage_date).toLocaleDateString()}
+                          {new Date(record.created_at).toLocaleDateString()}
                         </TableCell>
                         <TableCell className="font-medium text-xs sm:text-sm">
                           {record.products?.name}
                         </TableCell>
                         <TableCell className="text-xs sm:text-sm">
-                          {record.departments?.name}
-                        </TableCell>
-                        <TableCell className="text-xs sm:text-sm">
-                          {record.quantity} {record.products?.unit}
-                        </TableCell>
-                        <TableCell className="text-xs sm:text-sm">
-                          UGX {Number(record.total_value).toLocaleString()}
+                          {record.ml_quantity ? `${record.ml_quantity} ml` : `${record.quantity} ${record.products?.unit || 'units'}`}
                         </TableCell>
                         <TableCell className="text-xs sm:text-sm">
                           {record.reason || "-"}
@@ -426,9 +433,9 @@ const InternalUsage = () => {
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="recorded">Recorded</SelectItem>
-                                <SelectItem value="accounted">Accounted</SelectItem>
-                                <SelectItem value="adjusted">Adjusted</SelectItem>
+                                <SelectItem value="pending">Pending</SelectItem>
+                                <SelectItem value="approved">Approved</SelectItem>
+                                <SelectItem value="rejected">Rejected</SelectItem>
                               </SelectContent>
                             </Select>
                           </TableCell>
