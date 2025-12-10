@@ -1,12 +1,11 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { localApi } from "@/lib/localApi";
+import { supabase } from "@/integrations/supabase/client";
 import { DepartmentSelector } from "@/components/DepartmentSelector";
 import Navigation from "@/components/Navigation";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Package, Download, Search } from "lucide-react";
+import { Plus, Package, Search } from "lucide-react";
 import { toast } from "sonner";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useDepartment } from "@/contexts/DepartmentContext";
@@ -70,30 +69,52 @@ const Inventory = () => {
     queryFn: async () => {
       if (!selectedDepartmentId) return [];
       
-      const data = await localApi.products.getAll();
-      return data.filter((p: any) => 
-        p.department_id === selectedDepartmentId && 
-        !p.is_archived &&
-        p.tracking_type !== 'milliliter'
-      );
+      const { data, error } = await supabase
+        .from('products')
+        .select('*, categories(name)')
+        .eq('department_id', selectedDepartmentId)
+        .neq('tracking_type', 'ml')
+        .order('name');
+      if (error) throw error;
+      return (data || []).filter((p: any) => !p.is_archived);
     },
     enabled: !!selectedDepartmentId,
   });
 
   const { data: departments = [] } = useQuery({
     queryKey: ["departments"],
-    queryFn: () => localApi.departments.getAll(),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('departments')
+        .select('*')
+        .order('name');
+      if (error) throw error;
+      return data || [];
+    },
   });
-
 
   const { data: categories } = useQuery({
     queryKey: ["product-categories"],
-    queryFn: () => localApi.categories.getAll(),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('categories')
+        .select('*')
+        .order('name');
+      if (error) throw error;
+      return data || [];
+    },
   });
 
   const { data: suppliers } = useQuery({
     queryKey: ["suppliers"],
-    queryFn: () => localApi.services.getAll(), // Using services as placeholder
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('suppliers')
+        .select('*')
+        .order('name');
+      if (error) throw error;
+      return data || [];
+    },
   });
 
   const addStockMutation = useMutation({
@@ -101,10 +122,11 @@ const Inventory = () => {
       const product = products?.find((p: any) => p.id === productId);
       if (!product) throw new Error("Product not found");
       
-      await localApi.products.update(productId, {
-        ...product,
-        current_stock: (product.current_stock || 0) + stockToAdd,
-      });
+      const { error } = await supabase
+        .from('products')
+        .update({ stock: (product.stock || 0) + stockToAdd })
+        .eq('id', productId);
+      if (error) throw error;
     },
     onSuccess: () => {
       toast.success("Stock added successfully");
@@ -117,13 +139,11 @@ const Inventory = () => {
 
   const archiveProductMutation = useMutation({
     mutationFn: async (productId: string) => {
-      const product = products?.find((p: any) => p.id === productId);
-      if (!product) throw new Error("Product not found");
-      
-      await localApi.products.update(productId, {
-        ...product,
-        is_archived: true,
-      });
+      const { error } = await supabase
+        .from('products')
+        .update({ is_archived: true })
+        .eq('id', productId);
+      if (error) throw error;
     },
     onSuccess: () => {
       toast.success("Product archived successfully");
@@ -137,7 +157,12 @@ const Inventory = () => {
   const saveProductMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
       // Convert empty strings to null for UUID fields
-      const dataToSave: any = { ...data };
+      const dataToSave: any = { 
+        ...data,
+        stock: data.current_stock,
+        min_stock: data.reorder_level,
+        price: data.selling_price,
+      };
       if (!dataToSave.category_id) dataToSave.category_id = null;
       if (!dataToSave.department_id) dataToSave.department_id = null;
       if (!dataToSave.supplier_id) dataToSave.supplier_id = null;
@@ -145,9 +170,16 @@ const Inventory = () => {
       if (!dataToSave.brand) dataToSave.brand = null;
 
       if (editingProduct) {
-        await localApi.products.update(editingProduct.id, dataToSave);
+        const { error } = await supabase
+          .from('products')
+          .update(dataToSave)
+          .eq('id', editingProduct.id);
+        if (error) throw error;
       } else {
-        await localApi.products.create(dataToSave);
+        const { error } = await supabase
+          .from('products')
+          .insert(dataToSave);
+        if (error) throw error;
       }
     },
     onSuccess: async () => {
@@ -210,10 +242,10 @@ const Inventory = () => {
       brand: product.brand || "",
       unit: product.unit,
       quantity_per_unit: product.quantity_per_unit,
-      current_stock: product.current_stock,
-      reorder_level: product.reorder_level,
+      current_stock: product.stock || product.current_stock,
+      reorder_level: product.min_stock || product.reorder_level,
       cost_price: product.cost_price,
-      selling_price: product.selling_price,
+      selling_price: product.price || product.selling_price,
       is_bundle: product.is_bundle || false,
       tracking_type: product.tracking_type || "unit",
       volume_unit: product.volume_unit || "",
@@ -227,7 +259,7 @@ const Inventory = () => {
         individual: 0,
       },
       bottle_size_ml: product.bottle_size_ml || 0,
-      current_stock_ml: product.current_stock_ml || 0,
+      current_stock_ml: product.total_ml || 0,
       cost_per_ml: product.cost_per_ml || 0,
       wholesale_price_per_ml: product.wholesale_price_per_ml || 0,
       retail_price_per_ml: product.retail_price_per_ml || 0,

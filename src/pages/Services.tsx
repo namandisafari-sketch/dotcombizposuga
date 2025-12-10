@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { localApi } from "@/lib/localApi";
+import { supabase } from "@/integrations/supabase/client";
 import { useDepartment } from "@/contexts/DepartmentContext";
 import { useUserRole } from "@/hooks/useUserRole";
 import { DepartmentSelector } from "@/components/DepartmentSelector";
@@ -37,7 +37,13 @@ const Services = () => {
     queryKey: ["services", selectedDepartmentId],
     queryFn: async () => {
       if (!selectedDepartmentId) return [];
-      return await localApi.services.getAll(selectedDepartmentId);
+      const { data, error } = await supabase
+        .from('services')
+        .select('*')
+        .eq('department_id', selectedDepartmentId)
+        .order('name');
+      if (error) throw error;
+      return data || [];
     },
     enabled: !!selectedDepartmentId,
   });
@@ -45,8 +51,13 @@ const Services = () => {
   const { data: categories } = useQuery({
     queryKey: ["service-categories"],
     queryFn: async () => {
-      const allCategories = await localApi.categories.getAll();
-      return allCategories.filter((cat: any) => cat.type === 'service');
+      const { data, error } = await supabase
+        .from('categories')
+        .select('*')
+        .eq('type', 'service')
+        .order('name');
+      if (error) throw error;
+      return data || [];
     },
   });
 
@@ -59,9 +70,22 @@ const Services = () => {
       };
 
       if (editingService) {
-        return await localApi.services.update(editingService.id, dataWithDepartment);
+        const { data: result, error } = await supabase
+          .from('services')
+          .update(dataWithDepartment)
+          .eq('id', editingService.id)
+          .select()
+          .single();
+        if (error) throw error;
+        return result;
       } else {
-        return await localApi.services.create(dataWithDepartment);
+        const { data: result, error } = await supabase
+          .from('services')
+          .insert(dataWithDepartment)
+          .select()
+          .single();
+        if (error) throw error;
+        return result;
       }
     },
     onSuccess: () => {
