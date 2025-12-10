@@ -1,0 +1,390 @@
+import { Link, useLocation } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { useDepartment } from "@/contexts/DepartmentContext";
+import { useUserRole } from "@/hooks/useUserRole";
+import { useQuery } from "@tanstack/react-query";
+import { localApi } from "@/lib/localApi";
+import {
+  LayoutDashboard,
+  Package,
+  ShoppingCart,
+  Users,
+  FileText,
+  Settings,
+  BarChart3,
+  Calendar,
+  Scissors,
+  DollarSign,
+  AlertCircle,
+  Wallet,
+  PauseCircle,
+  TrendingUp,
+  Receipt,
+  CreditCard,
+  Sparkles,
+  ChevronRight,
+  Barcode,
+  Mail,
+  Globe,
+  Building2,
+  QrCode,
+  Upload,
+  BookOpen,
+} from "lucide-react";
+import {
+  Sidebar,
+  SidebarContent,
+  useSidebar,
+} from "@/components/ui/sidebar";
+import { cn } from "@/lib/utils";
+
+interface NavItem {
+  path: string;
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  adminOnly?: boolean;
+  moderatorOnly?: boolean;
+  requiresDepartment?: boolean;
+  departmentTypes?: string[];
+}
+
+export function AppSidebar() {
+  const { state } = useSidebar();
+  const isCollapsed = state === "collapsed";
+  const location = useLocation();
+  const { user } = useAuth();
+  const { selectedDepartmentId } = useDepartment();
+  const { isAdmin, isLoading: roleLoading } = useUserRole();
+
+  const { data: userNavPermissions } = useQuery({
+    queryKey: ["user-nav-permissions", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      try {
+        const data = await localApi.users.getNavPermissions(user.id);
+        return data?.map((p: any) => p.nav_path) || [];
+      } catch (error) {
+        console.error("Error fetching nav permissions:", error);
+        return [];
+      }
+    },
+    enabled: !!user,
+  });
+
+  const { data: departments } = useQuery({
+    queryKey: ["departments"],
+    queryFn: () => localApi.departments.getAll(),
+  });
+
+  const { data: userDepartment } = useQuery({
+    queryKey: ["user-department", selectedDepartmentId],
+    queryFn: async () => {
+      if (!selectedDepartmentId) return null;
+      const departments = await localApi.departments.getAll();
+      return departments.find((d: any) => d.id === selectedDepartmentId) || null;
+    },
+    enabled: !!selectedDepartmentId,
+  });
+
+  const allNavItems: NavItem[] = [
+    { path: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
+    { path: "/mobile-money-dashboard", icon: LayoutDashboard, label: "Dashboard", departmentTypes: ["mobile_money"] },
+    { path: "/inventory", icon: Package, label: "Inventory" },
+    { path: "/suppliers", icon: Building2, label: "Suppliers", adminOnly: true },
+    { path: "/sales", icon: ShoppingCart, label: "Sales" },
+    { path: "/sales-history", icon: Receipt, label: "Sales History" },
+    { path: "/customers", icon: Users, label: "Customers" },
+    { path: "/services", icon: Scissors, label: "Services" },
+    { path: "/appointments", icon: Calendar, label: "Appointments" },
+    { path: "/barcode-generator", icon: Barcode, label: "Barcode Generator" },
+    { path: "/reports", icon: FileText, label: "Reports" },
+    { path: "/credits", icon: CreditCard, label: "Credits" },
+    { path: "/customer-credits", icon: CreditCard, label: "Customer Credits" },
+    { path: "/inbox", icon: Mail, label: "Inbox" },
+    { path: "/internal-usage", icon: AlertCircle, label: "Internal Usage" },
+    { path: "/mobile-money", icon: Wallet, label: "Mobile Money", departmentTypes: ["mobile_money"] },
+    { path: "/suspended-revenue", icon: PauseCircle, label: "Suspended Revenue", departmentTypes: ["mobile_money"] },
+    { path: "/expenses", icon: DollarSign, label: "Expenses" },
+    { path: "/reconcile", icon: TrendingUp, label: "Reconciliation" },
+  ];
+
+  const perfumeNavItems: NavItem[] = [
+    { path: "/perfume-dashboard", icon: LayoutDashboard, label: "My Shop", departmentTypes: ["perfume"] },
+    { path: "/perfume-pos", icon: ShoppingCart, label: "Perfume POS", departmentTypes: ["perfume"] },
+    { path: "/perfume-inventory", icon: Sparkles, label: "Perfume Inventory", departmentTypes: ["perfume"] },
+    { path: "/perfume-report", icon: FileText, label: "Department Report", departmentTypes: ["perfume"] },
+    { path: "/perfume-analytics", icon: BarChart3, label: "Perfume Analytics", departmentTypes: ["perfume"] },
+    { path: "/scent-popularity", icon: TrendingUp, label: "Scent Popularity", departmentTypes: ["perfume"] },
+    { path: "/perfume-revenue", icon: DollarSign, label: "Perfume Revenue", departmentTypes: ["perfume"] },
+    { path: "/scent-manager", icon: Sparkles, label: "Scent Manager", departmentTypes: ["perfume"] },
+    { path: "/scent-qr", icon: QrCode, label: "Scent QR Code", departmentTypes: ["perfume"] },
+  ];
+
+  const adminItems: NavItem[] = [
+    { path: "/admin-reports", icon: BarChart3, label: "Admin Reports", adminOnly: true },
+    { path: "/admin-credit-approval", icon: CreditCard, label: "Credit Approvals", adminOnly: true },
+    { path: "/staff-management", icon: Users, label: "Staff Management", adminOnly: true },
+    { path: "/landing-page-editor", icon: Globe, label: "Landing Page", adminOnly: true },
+    { path: "/data-import", icon: Upload, label: "Data Import", adminOnly: true },
+    { path: "/user-accounts-guide", icon: BookOpen, label: "User Guide", adminOnly: true },
+    { path: "/settings", icon: Settings, label: "Settings", adminOnly: true },
+  ];
+
+  const isPerfumeDepartment = userDepartment?.name?.toLowerCase().includes("perfume");
+  const isMobileMoneyDepartment = userDepartment?.is_mobile_money === true;
+
+  let navItems = allNavItems.filter((item) => {
+    // Admins see everything
+    if (isAdmin) {
+      return true;
+    }
+    
+    // Check admin-only and moderator-only items
+    if (item.adminOnly || item.moderatorOnly) return false;
+    
+    // Perfume departments should NOT see regular operational pages
+    // They only use perfume-specific pages
+    if (isPerfumeDepartment) {
+      // Hide all regular operational pages for perfume departments EXCEPT those with explicit permissions
+      const regularPages = ["/dashboard", "/inventory", "/sales", "/sales-history", "/customers", 
+                            "/services", "/appointments", "/barcode-generator", "/reports", 
+                            "/inbox", "/internal-usage"];
+      if (regularPages.includes(item.path)) {
+        return false;
+      }
+      // Allow pages with explicit permissions (including credits, expenses, reconcile)
+      return userNavPermissions?.includes(item.path) || false;
+    }
+    
+    // Mobile money departments should NOT see regular operational pages
+    // They only use the mobile money POS page for everything
+    if (isMobileMoneyDepartment) {
+      const mobileMoneyOnlyPages = ["/mobile-money", "/mobile-money-dashboard", "/suspended-revenue", "/reconcile", "/expenses"];
+      if (item.departmentTypes?.includes("mobile_money")) {
+        return true; // Show mobile money specific pages
+      }
+      // Hide regular operational pages for mobile money departments
+      const regularPages = ["/inventory", "/sales", "/sales-history", "/services", "/reports"];
+      if (regularPages.includes(item.path)) {
+        return false;
+      }
+      // Allow other pages with explicit permissions
+      return userNavPermissions?.includes(item.path) || false;
+    }
+    
+    // Check department-specific items for non-mobile-money departments
+    if (item.departmentTypes) {
+      if (item.departmentTypes.includes("perfume") && isPerfumeDepartment) {
+        return true;
+      }
+      // If department doesn't match, deny access
+      return false;
+    }
+    
+    // For non-department-specific items, allow access with explicit permissions
+    // OR allow basic operational pages for all users in departments
+    const basicPages = ["/inventory", "/sales", "/sales-history", "/customers", "/services", 
+                        "/appointments", "/barcode-generator", "/credits", 
+                        "/inbox", "/internal-usage", "/reports"];
+    
+    if (basicPages.includes(item.path)) {
+      return true; // All department users can access basic operational pages
+    }
+    
+    // For other pages, check explicit permissions
+    if (!userNavPermissions || userNavPermissions.length === 0) {
+      return false;
+    }
+    
+    return userNavPermissions.includes(item.path);
+  });
+
+  const perfumeItems = perfumeNavItems.filter((item) => {
+    // Admins see everything
+    if (isAdmin) {
+      return true;
+    }
+    
+    // Non-admins in perfume department get automatic access to perfume items
+    if (isPerfumeDepartment) {
+      return true;
+    }
+    
+    return false;
+  });
+
+  const adminMenuItems = adminItems.filter((item) => {
+    // Admins see everything
+    if (isAdmin) {
+      return true;
+    }
+    
+    // Non-admins can't see admin-only items
+    if (item.adminOnly) return false;
+    
+    // For non-admins: if no permissions set, hide all items
+    if (!userNavPermissions || userNavPermissions.length === 0) {
+      return false;
+    }
+    
+    // For non-admins: only show items in their permissions
+    return userNavPermissions.includes(item.path);
+  });
+
+  const isActive = (path: string) => location.pathname === path;
+
+  if (roleLoading) {
+    return (
+      <Sidebar className={isCollapsed ? "w-14" : "w-64"}>
+        <SidebarContent>
+          <div className="flex items-center justify-center h-full">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          </div>
+        </SidebarContent>
+      </Sidebar>
+    );
+  }
+
+  return (
+    <Sidebar className={isCollapsed ? "w-14" : "w-64"}>
+      <SidebarContent className="px-2 pt-2">
+        {!isCollapsed ? (
+          <div className="space-y-6">
+            {/* Main Menu Section */}
+            <div className="space-y-1">
+              <h3 className="px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                Main Menu
+              </h3>
+              {navItems.map((item) => (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors w-full",
+                    isActive(item.path)
+                      ? "bg-primary text-primary-foreground"
+                      : "text-foreground hover:bg-accent hover:text-accent-foreground"
+                  )}
+                >
+                  <item.icon className="h-4 w-4 shrink-0" />
+                  <span className="flex-1">{item.label}</span>
+                  {isActive(item.path) && <ChevronRight className="h-4 w-4" />}
+                </Link>
+              ))}
+            </div>
+
+            {/* Perfume Section */}
+            {perfumeItems.length > 0 && (
+              <div className="space-y-1">
+                <h3 className="px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                  Perfume
+                </h3>
+                {perfumeItems.map((item) => (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    className={cn(
+                      "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors w-full",
+                      isActive(item.path)
+                        ? "bg-primary text-primary-foreground"
+                        : "text-foreground hover:bg-accent hover:text-accent-foreground"
+                    )}
+                  >
+                    <item.icon className="h-4 w-4 shrink-0" />
+                    <span className="flex-1">{item.label}</span>
+                    {isActive(item.path) && <ChevronRight className="h-4 w-4" />}
+                  </Link>
+                ))}
+              </div>
+            )}
+
+            {/* Admin Section */}
+            {adminMenuItems.length > 0 && (
+              <div className="space-y-1">
+                <h3 className="px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                  Administration
+                </h3>
+                {adminMenuItems.map((item) => (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    className={cn(
+                      "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors w-full",
+                      isActive(item.path)
+                        ? "bg-primary text-primary-foreground"
+                        : "text-foreground hover:bg-accent hover:text-accent-foreground"
+                    )}
+                  >
+                    <item.icon className="h-4 w-4 shrink-0" />
+                    <span className="flex-1">{item.label}</span>
+                    {isActive(item.path) && <ChevronRight className="h-4 w-4" />}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {navItems.map((item) => (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={cn(
+                  "flex items-center justify-center p-2 rounded-md transition-colors",
+                  isActive(item.path)
+                    ? "bg-primary text-primary-foreground"
+                    : "text-foreground hover:bg-accent hover:text-accent-foreground"
+                )}
+                title={item.label}
+              >
+                <item.icon className="h-5 w-5" />
+              </Link>
+            ))}
+
+            {perfumeItems.length > 0 && (
+              <>
+                <div className="h-px bg-border my-2" />
+                {perfumeItems.map((item) => (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    className={cn(
+                      "flex items-center justify-center p-2 rounded-md transition-colors",
+                      isActive(item.path)
+                        ? "bg-primary text-primary-foreground"
+                        : "text-foreground hover:bg-accent hover:text-accent-foreground"
+                    )}
+                    title={item.label}
+                  >
+                    <item.icon className="h-5 w-5" />
+                  </Link>
+                ))}
+              </>
+            )}
+
+            {adminMenuItems.length > 0 && (
+              <>
+                <div className="h-px bg-border my-2" />
+                {adminMenuItems.map((item) => (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    className={cn(
+                      "flex items-center justify-center p-2 rounded-md transition-colors",
+                      isActive(item.path)
+                        ? "bg-primary text-primary-foreground"
+                        : "text-foreground hover:bg-accent hover:text-accent-foreground"
+                    )}
+                    title={item.label}
+                  >
+                    <item.icon className="h-5 w-5" />
+                  </Link>
+                ))}
+              </>
+            )}
+          </div>
+        )}
+      </SidebarContent>
+    </Sidebar>
+  );
+}

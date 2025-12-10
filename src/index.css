@@ -1,0 +1,209 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 140 60% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 140 60% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 140 60% 10%;
+
+    --primary: 0 84% 60%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 140 60% 20%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 140 50% 35%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 140 60% 40%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 48 96% 89%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 0 84% 60%;
+
+    --radius: 0.5rem;
+
+    --gradient-primary: linear-gradient(135deg, hsl(0, 84%, 60%), hsl(0, 84%, 70%));
+    --gradient-secondary: linear-gradient(135deg, hsl(140, 60%, 20%), hsl(140, 60%, 30%));
+    --shadow-card: 0 2px 8px -2px hsl(0 84% 60% / 0.08);
+    --shadow-elevated: 0 8px 24px -4px hsl(0 84% 60% / 0.12);
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 140 60% 10%;
+    --sidebar-primary: 0 84% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 0 84% 95%;
+    --sidebar-accent-foreground: 140 60% 10%;
+    --sidebar-border: 214.3 31.8% 91.4%;
+    --sidebar-ring: 0 84% 60%;
+  }
+
+  .dark {
+    --background: 140 50% 8%;
+    --foreground: 0 0% 95%;
+
+    --card: 140 45% 12%;
+    --card-foreground: 0 0% 95%;
+
+    --popover: 140 45% 12%;
+    --popover-foreground: 0 0% 95%;
+
+    --primary: 0 84% 60%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 140 50% 20%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 140 30% 25%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --accent: 140 40% 30%;
+    --accent-foreground: 0 0% 95%;
+
+    --destructive: 0 62.8% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 140 60% 45%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 48 96% 89%;
+
+    --border: 140 30% 25%;
+    --input: 140 30% 25%;
+    --ring: 0 84% 60%;
+
+    --shadow-card: 0 2px 8px -2px hsl(0 0% 0% / 0.3);
+    --shadow-elevated: 0 8px 24px -4px hsl(0 0% 0% / 0.4);
+
+    --sidebar-background: 140 45% 12%;
+    --sidebar-foreground: 0 0% 95%;
+    --sidebar-primary: 0 84% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 140 30% 20%;
+    --sidebar-accent-foreground: 0 0% 95%;
+    --sidebar-border: 140 30% 25%;
+    --sidebar-ring: 0 84% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+      'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+      sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* Custom scrollbar styles */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Print styles */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #receipt-print, #receipt-print * {
+    visibility: visible;
+  }
+  #receipt-print {
+    position: absolute;
+    left: 0;
+    top: 0;
+  }
+}
+
+/* Mobile-specific improvements */
+@media (max-width: 640px) {
+  /* Better tap targets for mobile */
+  button:not(.no-min-size), 
+  a:not(.no-min-size) {
+    min-height: 40px;
+  }
+  
+  /* Prevent iOS zoom on input focus */
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+  
+  /* Better table scrolling */
+  .table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Optimize card spacing */
+  .card-mobile-compact {
+    padding: 0.75rem;
+  }
+}
+
+/* Ensure dropdowns have proper background and z-index */
+[role="menu"],
+[role="listbox"],
+[data-radix-popper-content-wrapper] {
+  z-index: 50 !important;
+}
+
+[role="menu"] > *,
+[role="listbox"] > *,
+[data-radix-popper-content-wrapper] > * {
+  background: hsl(var(--popover));
+}
+
+/* Safe area handling for iOS notch/home indicator */
+@supports (padding: env(safe-area-inset-bottom)) {
+  .pb-safe {
+    padding-bottom: calc(env(safe-area-inset-bottom) + 1rem) !important;
+  }
+  
+  .mb-safe {
+    margin-bottom: calc(env(safe-area-inset-bottom) + 1rem) !important;
+  }
+}
+
+/* Touch optimization */
+@media (hover: none) and (pointer: coarse) {
+  /* Increase touch targets on mobile */
+  button, 
+  [role="button"],
+  a[href] {
+    padding: 0.625rem 1rem;
+  }
+}
+

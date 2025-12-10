@@ -1,0 +1,14 @@
+{
+  "name": "dotcom-buzi-migration",
+  "version": "1.0.0",
+  "description": "Migration scripts for DOTCOM BUZI POS",
+  "type": "module",
+  "scripts": {
+    "export:db": "./1-export-database.sh",
+    "export:storage": "node 2-export-storage.js",
+    "export:all": "npm run export:db && npm run export:storage"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.77.0"
+  }
+}
