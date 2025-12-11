@@ -69,7 +69,7 @@ export const PrintPreviewDialog = ({
     
     try {
       // Create a hidden print window with proper print styles
-      const printWindow = window.open("", "_blank", "width=800,height=600");
+      const printWindow = window.open("", "_blank", "width=400,height=800");
       
       if (!printWindow) {
         console.error("Could not open print window. Please allow popups.");
@@ -80,12 +80,16 @@ export const PrintPreviewDialog = ({
       // Add print-specific CSS based on settings
       const printStyles = `
         @page {
-          size: ${paperSize === "receipt" ? "80mm 200mm" : paperSize === "a4" ? "A4" : "letter"} ${orientation};
-          margin: ${paperSize === "receipt" ? "5mm" : "15mm"};
+          size: ${paperSize === "receipt" ? "80mm auto" : paperSize === "a4" ? "A4" : "letter"} ${orientation};
+          margin: ${paperSize === "receipt" ? "2mm" : "10mm"};
         }
         @media print {
-          body { margin: 0; padding: 0; }
+          body { margin: 0; padding: 5px; }
           * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          .back-page { page-break-before: always; }
+        }
+        @media screen {
+          .back-page { border-top: 2px dashed #000; margin-top: 20px; padding-top: 20px; }
         }
       `;
 
@@ -98,26 +102,18 @@ export const PrintPreviewDialog = ({
       printWindow.document.write(htmlWithPrintStyles);
       printWindow.document.close();
 
-      printWindow.onload = () => {
-        // Print the specified number of copies
-        for (let i = 0; i < copies; i++) {
-          setTimeout(() => {
-            printWindow.print();
-          }, i * 100);
-        }
-
-        printWindow.onafterprint = () => {
-          printWindow.close();
-          setIsPrinting(false);
-          onPrint?.();
-        };
-
-        // Fallback close after timeout
+      // Wait for content to load then print
+      setTimeout(() => {
+        printWindow.focus();
+        printWindow.print();
+        
+        // Close after print dialog
         setTimeout(() => {
           printWindow.close();
           setIsPrinting(false);
-        }, 3000);
-      };
+          onPrint?.();
+        }, 1000);
+      }, 500);
     } catch (error) {
       console.error("Print error:", error);
       setIsPrinting(false);
@@ -175,7 +171,7 @@ export const PrintPreviewDialog = ({
   const getPreviewHeight = () => {
     switch (paperSize) {
       case "receipt":
-        return 600;
+        return 800; // Increased to show back page
       case "a4":
         return orientation === "portrait" ? 842 : 595;
       case "letter":

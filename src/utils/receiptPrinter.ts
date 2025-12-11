@@ -285,17 +285,19 @@ export const generateReceiptHTML = (data: ReceiptData): string => {
         `}
       </div>
       
-      <div style="page-break-before: always;"></div>
-      
-      <div style="padding-top: 20px; text-align: center; font-size: 10px;">
-        <div style="font-weight: bold; font-size: 12px; margin-bottom: 10px;">POWERED BY</div>
-        <div style="font-weight: bold; font-size: 14px; margin-bottom: 5px;">KABEJJA SYSTEMS</div>
-        <div style="margin-bottom: 15px;">In partnership with DOTCOM BROTHERS LTD</div>
-        <div style="border-top: 1px dashed #000; padding-top: 10px; margin-top: 10px;">
-          <div style="font-weight: bold; margin-bottom: 5px;">Visit us at:</div>
-          <div style="font-size: 12px; margin-bottom: 10px;">🌐 www.kabejjasystems.store</div>
-          <div style="font-weight: bold; margin-bottom: 5px;">Talk to Earn:</div>
-          <div style="font-size: 12px;">📞 +256745368426</div>
+      <!-- Back Page - System Info -->
+      <div class="back-page" style="page-break-before: always; min-height: 200px; padding: 20px 0; margin-top: 20px; border-top: 2px dashed #000;">
+        <div style="text-align: center; font-size: 10px;">
+          <div style="font-weight: bold; font-size: 12px; margin-bottom: 10px; color: #333;">✂️ BACK PAGE ✂️</div>
+          <div style="font-weight: bold; font-size: 14px; margin-bottom: 5px;">POWERED BY</div>
+          <div style="font-weight: bold; font-size: 16px; margin-bottom: 5px; color: #000;">KABEJJA SYSTEMS</div>
+          <div style="margin-bottom: 15px; font-size: 11px;">In partnership with DOTCOM BROTHERS LTD</div>
+          <div style="border-top: 1px dashed #000; padding-top: 10px; margin-top: 10px;">
+            <div style="font-weight: bold; margin-bottom: 5px;">Visit us at:</div>
+            <div style="font-size: 12px; margin-bottom: 10px;">🌐 www.kabejjasystems.store</div>
+            <div style="font-weight: bold; margin-bottom: 5px;">Talk to Earn:</div>
+            <div style="font-size: 12px;">📞 +256745368426</div>
+          </div>
         </div>
       </div>
     </body>
