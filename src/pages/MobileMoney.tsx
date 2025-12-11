@@ -509,6 +509,7 @@ const MobileMoney = () => {
           website: deptSettings?.website || undefined,
         },
         seasonalRemark: deptSettings?.seasonal_remark || undefined,
+        showBackPage: (deptSettings as any)?.show_back_page !== false,
       };
 
       // Handle mobile money payment

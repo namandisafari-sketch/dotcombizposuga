@@ -86,7 +86,11 @@ export const PrintPreviewDialog = ({
         @media print {
           body { margin: 0; padding: 5px; }
           * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-          .back-page { page-break-before: always; }
+          .back-page { 
+            page-break-before: avoid !important; 
+            page-break-after: avoid !important;
+            page-break-inside: avoid !important;
+          }
         }
         @media screen {
           .back-page { border-top: 2px dashed #000; margin-top: 20px; padding-top: 20px; }
@@ -102,18 +106,47 @@ export const PrintPreviewDialog = ({
       printWindow.document.write(htmlWithPrintStyles);
       printWindow.document.close();
 
-      // Wait for content to load then print
-      setTimeout(() => {
+      // Wait for images to load
+      const waitForImages = async () => {
+        const images = printWindow.document.querySelectorAll('img');
+        const imagePromises = Array.from(images).map(img => {
+          return new Promise<void>((resolveImg) => {
+            if (img.complete && img.naturalHeight !== 0) {
+              resolveImg();
+              return;
+            }
+            img.onload = () => resolveImg();
+            img.onerror = () => resolveImg();
+          });
+        });
+        await Promise.all(imagePromises);
+      };
+
+      // Use requestAnimationFrame for dynamically written content
+      const initPrint = async () => {
+        await Promise.race([
+          waitForImages(),
+          new Promise(r => setTimeout(r, 3000))
+        ]);
+        await new Promise(r => setTimeout(r, 800));
         printWindow.focus();
         printWindow.print();
-        
-        // Close after print dialog
         setTimeout(() => {
           printWindow.close();
           setIsPrinting(false);
           onPrint?.();
-        }, 1000);
-      }, 500);
+        }, 2000);
+      };
+
+      if (printWindow.requestAnimationFrame) {
+        printWindow.requestAnimationFrame(() => {
+          printWindow.requestAnimationFrame(() => {
+            initPrint();
+          });
+        });
+      } else {
+        setTimeout(initPrint, 500);
+      }
     } catch (error) {
       console.error("Print error:", error);
       setIsPrinting(false);

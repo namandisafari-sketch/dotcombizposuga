@@ -91,12 +91,43 @@ export const ReceiptActionsDialog = ({
       if (printWindow) {
         printWindow.document.write(printPreviewHtml);
         printWindow.document.close();
-        printWindow.onload = () => {
-          setTimeout(() => {
-            printWindow.print();
-            printWindow.close();
-          }, 250);
+        
+        // Wait for images to load
+        const waitForImages = async () => {
+          const images = printWindow.document.querySelectorAll('img');
+          const imagePromises = Array.from(images).map(img => {
+            return new Promise<void>((resolveImg) => {
+              if (img.complete && img.naturalHeight !== 0) {
+                resolveImg();
+                return;
+              }
+              img.onload = () => resolveImg();
+              img.onerror = () => resolveImg();
+            });
+          });
+          await Promise.all(imagePromises);
         };
+        
+        // Use requestAnimationFrame for dynamically written content
+        const initPrint = async () => {
+          await Promise.race([
+            waitForImages(),
+            new Promise(r => setTimeout(r, 3000))
+          ]);
+          await new Promise(r => setTimeout(r, 800));
+          printWindow.print();
+          setTimeout(() => printWindow.close(), 2000);
+        };
+        
+        if (printWindow.requestAnimationFrame) {
+          printWindow.requestAnimationFrame(() => {
+            printWindow.requestAnimationFrame(() => {
+              initPrint();
+            });
+          });
+        } else {
+          setTimeout(initPrint, 500);
+        }
       }
       setShowPrintPreview(false);
     } catch (error) {

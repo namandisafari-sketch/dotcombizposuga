@@ -31,6 +31,7 @@ interface ReceiptData {
   };
   seasonalRemark?: string;
   qrCodeUrl?: string;
+  showBackPage?: boolean;
 }
 
 export const generateReceiptHTML = (data: ReceiptData): string => {
@@ -298,27 +299,29 @@ export const generateReceiptHTML = (data: ReceiptData): string => {
         `}
       </div>
       
+      ${data.showBackPage !== false ? `
       <!-- Back Page - System Info (continuous, no page break) -->
       <div class="back-page" style="min-height: 150px; padding: 15px 0; margin-top: 15px; border-top: 2px dashed #000;">
         <div style="text-align: center; font-size: 10px;">
-          <div style="font-weight: bold; font-size: 11px; margin-bottom: 8px; color: #333;">--- POWERED BY ---</div>
+          <div style="font-weight: bold; font-size: 11px; margin-bottom: 8px; color: #333;">✓ BACK PAGE ✓</div>
+          <div style="font-weight: bold; font-size: 14px; margin-bottom: 3px; color: #000;">POWERED BY</div>
           <div style="font-weight: bold; font-size: 14px; margin-bottom: 3px; color: #000;">KABEJJA SYSTEMS</div>
           <div style="margin-bottom: 12px; font-size: 10px;">In partnership with DOTCOM BROTHERS LTD</div>
           
           <div style="display: flex; justify-content: center; gap: 12px; margin: 12px 0;">
             <div style="text-align: center;">
-              <div style="font-weight: bold; font-size: 8px; margin-bottom: 4px;">Visit Website</div>
+              <div style="font-weight: bold; font-size: 8px; margin-bottom: 4px;">Scan to Visit Website</div>
               <img src="https://api.qrserver.com/v1/create-qr-code/?size=70x70&data=https://www.kabejjasystems.store" 
                    alt="Website QR" 
                    style="width: 70px; height: 70px; border: 1px solid #333; border-radius: 4px; padding: 2px; background: white;" />
-              <div style="font-size: 7px; margin-top: 2px;">kabejjasystems.store</div>
+              <div style="font-size: 7px; margin-top: 2px;">🌐 kabejjasystems.store</div>
             </div>
             <div style="text-align: center;">
-              <div style="font-weight: bold; font-size: 8px; margin-bottom: 4px;">WhatsApp Us</div>
+              <div style="font-weight: bold; font-size: 8px; margin-bottom: 4px;">Scan to WhatsApp</div>
               <img src="https://api.qrserver.com/v1/create-qr-code/?size=70x70&data=https://wa.me/256745368426" 
                    alt="WhatsApp QR" 
                    style="width: 70px; height: 70px; border: 1px solid #333; border-radius: 4px; padding: 2px; background: white;" />
-              <div style="font-size: 7px; margin-top: 2px;">+256745368426</div>
+              <div style="font-size: 7px; margin-top: 2px;">📱 +256745368426</div>
             </div>
           </div>
           
@@ -328,6 +331,7 @@ export const generateReceiptHTML = (data: ReceiptData): string => {
           </div>
         </div>
       </div>
+      ` : ''}
     </body>
     </html>
   `;
@@ -566,6 +570,7 @@ export const autoPrintReceipt = async (saleId: string, supabase: any): Promise<v
       },
       seasonalRemark: settings?.seasonal_remark,
       qrCodeUrl,
+      showBackPage: settings?.show_back_page !== false,
     };
 
     const printed = await printReceipt(receiptData, false);
