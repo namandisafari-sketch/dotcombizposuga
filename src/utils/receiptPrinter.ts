@@ -285,11 +285,18 @@ export const generateReceiptHTML = (data: ReceiptData): string => {
         `}
       </div>
       
-      <div style="margin-top: 15px; padding-top: 10px; border-top: 1px dashed #000; text-align: center; font-size: 9px; color: #555;">
-        <div style="font-weight: bold; margin-bottom: 3px;">System by KABEJJA SYSTEMS</div>
-        <div>In partnership with DOTCOM BROTHERS LTD</div>
-        <div style="margin-top: 5px;">🌐 www.kabejjasystems.store</div>
-        <div>📞 Talk to Earn: +256745368426</div>
+      <div style="page-break-before: always;"></div>
+      
+      <div style="padding-top: 20px; text-align: center; font-size: 10px;">
+        <div style="font-weight: bold; font-size: 12px; margin-bottom: 10px;">POWERED BY</div>
+        <div style="font-weight: bold; font-size: 14px; margin-bottom: 5px;">KABEJJA SYSTEMS</div>
+        <div style="margin-bottom: 15px;">In partnership with DOTCOM BROTHERS LTD</div>
+        <div style="border-top: 1px dashed #000; padding-top: 10px; margin-top: 10px;">
+          <div style="font-weight: bold; margin-bottom: 5px;">Visit us at:</div>
+          <div style="font-size: 12px; margin-bottom: 10px;">🌐 www.kabejjasystems.store</div>
+          <div style="font-weight: bold; margin-bottom: 5px;">Talk to Earn:</div>
+          <div style="font-size: 12px;">📞 +256745368426</div>
+        </div>
       </div>
     </body>
     </html>
