@@ -26,6 +26,7 @@ const MobileMoneyDashboard = () => {
       return data || [];
     },
     enabled: !!selectedDepartmentId,
+    refetchInterval: 5000,
   });
 
   const { data: allSales = [] } = useQuery({
@@ -45,6 +46,7 @@ const MobileMoneyDashboard = () => {
       return data || [];
     },
     enabled: !!selectedDepartmentId,
+    refetchInterval: 5000,
   });
 
   const todayRevenue = todaySales.reduce((sum, s) => sum + Number(s.total), 0);

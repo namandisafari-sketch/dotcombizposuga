@@ -9,6 +9,8 @@ interface ReceiptPreviewProps {
     email?: string;
     logo?: string;
     seasonalRemark?: string;
+    website?: string;
+    whatsapp?: string;
   };
 }
 
@@ -28,12 +30,16 @@ export const ReceiptPreview = ({ businessInfo }: ReceiptPreviewProps) => {
         <div className="bg-white text-black rounded-lg p-4 text-xs font-mono shadow-inner border max-w-[280px] mx-auto">
           {/* Header */}
           <div className="flex items-start gap-2 pb-2 border-b border-dashed border-gray-400">
-            {businessInfo.logo && (
+            {businessInfo.logo ? (
               <img 
                 src={businessInfo.logo} 
                 alt="Logo" 
                 className="w-10 h-10 object-contain border rounded flex-shrink-0"
               />
+            ) : (
+              <div className="w-10 h-10 bg-gray-200 border rounded flex-shrink-0 flex items-center justify-center text-[8px] text-gray-400">
+                Logo
+              </div>
             )}
             <div className="flex-1">
               <div className="font-bold text-[11px] uppercase tracking-wide">
@@ -118,8 +124,35 @@ export const ReceiptPreview = ({ businessInfo }: ReceiptPreviewProps) => {
                 ✨ {businessInfo.seasonalRemark} ✨
               </div>
             )}
-            <div>Thank you for your business!</div>
-            <div className="mt-1">Powered by Dotcom Brothers</div>
+            <div className="font-bold mb-1">Thank you for your business!</div>
+            
+            {/* WhatsApp & Website Info */}
+            {(businessInfo.whatsapp || businessInfo.website) && (
+              <div className="mt-2 pt-2 border-t border-dashed border-gray-300">
+                <div className="text-[8px] font-semibold mb-1">Connect with us:</div>
+                {businessInfo.whatsapp && (
+                  <div className="flex items-center justify-center gap-1 mb-1">
+                    <span>📱 WhatsApp:</span>
+                    <span className="font-medium">{businessInfo.whatsapp}</span>
+                  </div>
+                )}
+                {businessInfo.website && (
+                  <div className="flex items-center justify-center gap-1">
+                    <span>🌐</span>
+                    <span className="font-medium">{businessInfo.website}</span>
+                  </div>
+                )}
+                {businessInfo.whatsapp && (
+                  <div className="mt-2 text-[7px] text-gray-500">
+                    [QR Code will appear here]
+                  </div>
+                )}
+              </div>
+            )}
+            
+            <div className="mt-2 pt-1 border-t border-gray-200">
+              Powered by Dotcom Brothers
+            </div>
           </div>
         </div>
         <p className="text-xs text-muted-foreground text-center mt-3">

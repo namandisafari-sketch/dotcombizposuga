@@ -429,6 +429,8 @@ const Settings = () => {
                     email: formData.business_email,
                     logo: formData.logo_url,
                     seasonalRemark: formData.seasonal_remark,
+                    website: formData.website,
+                    whatsapp: formData.whatsapp_number,
                   }}
                 />
 

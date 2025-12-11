@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
-import { localApi } from "@/lib/localApi";
+import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DollarSign, Package, TrendingUp, AlertTriangle, Users } from "lucide-react";
+import { DollarSign, Package, AlertTriangle, Users } from "lucide-react";
 import Navigation from "@/components/Navigation";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useDepartment } from "@/contexts/DepartmentContext";
@@ -11,85 +11,103 @@ const Dashboard = () => {
   const { isAdmin } = useUserRole();
   const { selectedDepartmentId, selectedDepartment, isPerfumeDepartment } = useDepartment();
 
-  // All hooks must be called before any conditional returns
+  // Today's sales - using Supabase directly
   const { data: todaySales } = useQuery({
     queryKey: ["today-sales", selectedDepartmentId],
     queryFn: async () => {
       if (!selectedDepartmentId) return 0;
       
       const today = new Date().toISOString().split("T")[0];
-      const data = await localApi.sales.getAll({ 
-        startDate: `${today}T00:00:00`,
-        endDate: `${today}T23:59:59`,
-        status: 'completed'
-      });
+      const { data, error } = await supabase
+        .from('sales')
+        .select('total')
+        .eq('department_id', selectedDepartmentId)
+        .neq('status', 'voided')
+        .gte('created_at', `${today}T00:00:00`)
+        .lte('created_at', `${today}T23:59:59`);
       
-      return data
-        .filter((s: any) => s.department_id === selectedDepartmentId && s.status !== 'voided')
-        .reduce((sum: number, sale: any) => sum + Number(sale.total), 0) || 0;
+      if (error) throw error;
+      return (data || []).reduce((sum, sale) => sum + Number(sale.total || 0), 0);
     },
     enabled: !!selectedDepartmentId && !isPerfumeDepartment,
-    refetchOnWindowFocus: true,
-    staleTime: 0,
+    refetchInterval: 5000,
   });
 
+  // Low stock products - using Supabase directly
   const { data: lowStockProducts } = useQuery({
     queryKey: ["low-stock", selectedDepartmentId],
     queryFn: async () => {
       if (!selectedDepartmentId) return [];
       
-      const data = await localApi.products.getAll();
-      return data
-        .filter((p: any) => 
-          p.department_id === selectedDepartmentId && 
-          p.current_stock <= p.reorder_level
-        );
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .eq('department_id', selectedDepartmentId)
+        .eq('is_active', true);
+      
+      if (error) throw error;
+      return (data || []).filter(p => (p.stock || 0) <= (p.min_stock || 5));
     },
     enabled: !!selectedDepartmentId && !isPerfumeDepartment,
-    refetchOnWindowFocus: true,
-    staleTime: 0,
+    refetchInterval: 10000,
   });
 
+  // Recent sales - using Supabase directly
   const { data: recentSales } = useQuery({
     queryKey: ["recent-sales", selectedDepartmentId],
     queryFn: async () => {
       if (!selectedDepartmentId) return [];
       
-      const data = await localApi.sales.getAll();
-      return data
-        .filter((s: any) => s.department_id === selectedDepartmentId && s.status !== 'voided')
-        .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-        .slice(0, 5);
+      const { data, error } = await supabase
+        .from('sales')
+        .select('*')
+        .eq('department_id', selectedDepartmentId)
+        .neq('status', 'voided')
+        .order('created_at', { ascending: false })
+        .limit(5);
+      
+      if (error) throw error;
+      return data || [];
     },
     enabled: !!selectedDepartmentId && !isPerfumeDepartment,
-    refetchOnWindowFocus: true,
-    staleTime: 0,
+    refetchInterval: 5000,
   });
 
+  // Total products - using Supabase directly
   const { data: totalProducts } = useQuery({
     queryKey: ["total-products", selectedDepartmentId],
     queryFn: async () => {
       if (!selectedDepartmentId) return 0;
       
-      const data = await localApi.products.getAll();
-      return data.filter((p: any) => p.department_id === selectedDepartmentId).length;
+      const { count, error } = await supabase
+        .from('products')
+        .select('*', { count: 'exact', head: true })
+        .eq('department_id', selectedDepartmentId)
+        .eq('is_active', true);
+      
+      if (error) throw error;
+      return count || 0;
     },
     enabled: !!selectedDepartmentId && !isPerfumeDepartment,
-    refetchOnWindowFocus: true,
-    staleTime: 0,
+    refetchInterval: 10000,
   });
 
+  // Total customers - using Supabase directly
   const { data: totalCustomers } = useQuery({
     queryKey: ["total-customers", selectedDepartmentId],
     queryFn: async () => {
       if (!selectedDepartmentId) return 0;
       
-      const data = await localApi.customers.getAll();
-      return data.filter((c: any) => c.department_id === selectedDepartmentId).length;
+      const { count, error } = await supabase
+        .from('customers')
+        .select('*', { count: 'exact', head: true })
+        .eq('department_id', selectedDepartmentId);
+      
+      if (error) throw error;
+      return count || 0;
     },
     enabled: !!selectedDepartmentId && !isPerfumeDepartment,
-    refetchOnWindowFocus: true,
-    staleTime: 0,
+    refetchInterval: 10000,
   });
 
   // Check if current department is a perfume department
@@ -124,7 +142,7 @@ const Dashboard = () => {
                 {selectedDepartment?.name || "Dashboard"}
               </h2>
               <p className="text-sm sm:text-base text-muted-foreground">
-                Department Overview - Test Update
+                Department Overview
               </p>
             </div>
             {isAdmin && <DepartmentSelector />}
