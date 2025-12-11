@@ -606,14 +606,10 @@ export function PerfumeRefillDialog({
                         return (
                           <Badge 
                             key={s.scent} 
-                            variant={isLowStock ? "destructive" : "secondary"} 
+                            variant="secondary"
                             className="flex items-center gap-1 py-1"
                           >
                             {s.scent}
-                            {selectedBottleSize && (
-                              <span className="text-xs opacity-70">({getMlPerScent()}ml)</span>
-                            )}
-                            {isLowStock && <AlertTriangle className="w-3 h-3" />}
                             <Button
                               variant="ghost"
                               size="sm"
@@ -626,11 +622,6 @@ export function PerfumeRefillDialog({
                         );
                       })}
                     </div>
-                    {selectedBottleSize && selectedScents.length > 0 && (
-                      <p className="text-xs text-muted-foreground">
-                        Each scent: {getMlPerScent()}ml (equally divided)
-                      </p>
-                    )}
                   </div>
                 )}
               </CardContent>
