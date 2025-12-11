@@ -65,44 +65,42 @@ export default function PerfumeDashboard() {
     refetchInterval: 5000,
   });
 
-  // Total Oil Perfume stock
+  // Total stock = sum of all scent stock_ml
   const { data: totalStock } = useQuery({
     queryKey: ["perfume-stock", departmentId],
     queryFn: async () => {
       if (!departmentId) return 0;
       
       const { data, error } = await supabase
-        .from("products")
-        .select("total_ml")
-        .eq("department_id", departmentId)
-        .eq("name", "Oil Perfume")
-        .eq("tracking_type", "ml")
-        .maybeSingle();
+        .from("perfume_scents")
+        .select("stock_ml")
+        .or(`department_id.eq.${departmentId},department_id.is.null`)
+        .eq("is_active", true);
       
       if (error) throw error;
-      return data?.total_ml || 0;
+      return (data || []).reduce((sum, scent) => sum + (scent.stock_ml || 0), 0);
     },
     enabled: !!departmentId && hasAccess,
     refetchInterval: 10000,
   });
 
-  // Low stock products
+  // Low stock scents (individual scents running low)
   const { data: lowStockProducts } = useQuery({
     queryKey: ["perfume-low-stock", departmentId],
     queryFn: async () => {
       if (!departmentId) return [];
       
       const { data, error } = await supabase
-        .from("products")
-        .select("*")
-        .eq("department_id", departmentId)
-        .eq("tracking_type", "ml")
-        .neq("name", "Oil Perfume")
-        .order("total_ml", { ascending: true })
+        .from("perfume_scents")
+        .select("id, name, stock_ml")
+        .or(`department_id.eq.${departmentId},department_id.is.null`)
+        .eq("is_active", true)
+        .order("stock_ml", { ascending: true })
         .limit(5);
       
       if (error) throw error;
-      return (data || []).filter(p => (p.total_ml || 0) <= (p.min_stock || 0));
+      // Return scents with stock below 100ml as low stock
+      return (data || []).filter(s => (s.stock_ml || 0) < 100);
     },
     enabled: !!departmentId && hasAccess,
     refetchInterval: 10000,
@@ -409,21 +407,21 @@ export default function PerfumeDashboard() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Perfume Name</TableHead>
+                    <TableHead>Scent Name</TableHead>
                     <TableHead>Stock Now</TableHead>
-                    <TableHead>Should Have</TableHead>
+                    <TableHead>Threshold</TableHead>
                     <TableHead>Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {lowStockProducts.map((product) => (
-                    <TableRow key={product.id}>
-                      <TableCell className="font-medium">{product.name}</TableCell>
-                      <TableCell>{Number(product.total_ml || 0).toLocaleString()} ml</TableCell>
-                      <TableCell>{Number(product.min_stock || 0).toLocaleString()} ml</TableCell>
+                  {lowStockProducts.map((scent) => (
+                    <TableRow key={scent.id}>
+                      <TableCell className="font-medium">{scent.name}</TableCell>
+                      <TableCell>{Number(scent.stock_ml || 0).toLocaleString()} ml</TableCell>
+                      <TableCell>100 ml</TableCell>
                       <TableCell>
-                        <Badge variant={(product.total_ml || 0) === 0 ? "destructive" : "secondary"}>
-                          {(product.total_ml || 0) === 0 ? "Empty" : "Low"}
+                        <Badge variant={(scent.stock_ml || 0) === 0 ? "destructive" : "secondary"}>
+                          {(scent.stock_ml || 0) === 0 ? "Empty" : "Low"}
                         </Badge>
                       </TableCell>
                     </TableRow>
