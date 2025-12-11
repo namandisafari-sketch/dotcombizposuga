@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, Plus, Trash2, Search, AlertCircle } from "lucide-react";
+import { Sparkles, Plus, Trash2, Search, AlertCircle, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { PERFUME_SCENTS } from "@/constants/perfumeScents";
 import { useAuth } from "@/contexts/AuthContext";
@@ -141,19 +141,35 @@ export default function ScentManager() {
                       {isOutOfStock && <AlertCircle className="w-3 h-3" />}
                       {scent}
                       <div className="flex items-center gap-1 ml-1">
-                        <button
-                          onClick={() => {
-                            toggleStockStatusMutation.mutate({
-                              scentName: scent,
-                              isOutOfStock: !isOutOfStock,
-                              existingId: customScent?.id,
-                            });
-                          }}
-                          className="hover:opacity-70"
-                          title={isOutOfStock ? "Mark as available" : "Mark as out of stock"}
-                        >
-                          <AlertCircle className={`w-3 h-3 ${isOutOfStock ? '' : 'text-muted-foreground'}`} />
-                        </button>
+                        {isOutOfStock ? (
+                          <button
+                            onClick={() => {
+                              toggleStockStatusMutation.mutate({
+                                scentName: scent,
+                                isOutOfStock: false,
+                                existingId: customScent?.id,
+                              });
+                            }}
+                            className="hover:opacity-70 text-green-400"
+                            title="Mark as In Stock"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => {
+                              toggleStockStatusMutation.mutate({
+                                scentName: scent,
+                                isOutOfStock: true,
+                                existingId: customScent?.id,
+                              });
+                            }}
+                            className="hover:opacity-70 text-muted-foreground"
+                            title="Mark as Out of Stock"
+                          >
+                            <AlertCircle className="w-3 h-3" />
+                          </button>
+                        )}
                         {isCustom && customScent && (
                           <button
                             onClick={() => {
@@ -172,15 +188,23 @@ export default function ScentManager() {
                 })}
               </div>
 
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Badge variant="destructive" className="h-5 w-5 flex items-center justify-center p-0">
-                  <AlertCircle className="w-3 h-3" />
-                </Badge>
-                <span>Out of Stock</span>
-                <Badge variant="default" className="h-5 w-5 ml-4" />
-                <span>Custom Scents ({customScents?.length || 0})</span>
-                <Badge variant="secondary" className="h-5 w-5 ml-4" />
-                <span>Default Scents ({PERFUME_SCENTS.length})</span>
+              <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+                <div className="flex items-center gap-1">
+                  <Badge variant="destructive" className="h-5 px-2 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" />
+                  </Badge>
+                  <span>Out of Stock</span>
+                  <CheckCircle2 className="w-3.5 h-3.5 text-green-500 ml-1" />
+                  <span className="text-green-600">= Click to restore</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Badge variant="default" className="h-5 w-5" />
+                  <span>Custom ({customScents?.length || 0})</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Badge variant="secondary" className="h-5 w-5" />
+                  <span>Default ({PERFUME_SCENTS.length})</span>
+                </div>
               </div>
             </CardContent>
           </Card>
