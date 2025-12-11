@@ -422,11 +422,11 @@ export const autoPrintReceipt = async (saleId: string, supabase: any): Promise<v
       throw new Error('Could not fetch sale details');
     }
 
-    // Fetch department-specific settings if sale has a department
+    // Fetch department-specific settings from settings table (not department_settings)
     let settings = null;
     if (sale.department_id) {
       const { data: deptSettings } = await supabase
-        .from('department_settings')
+        .from('settings')
         .select('*')
         .eq('department_id', sale.department_id)
         .maybeSingle();
@@ -438,8 +438,19 @@ export const autoPrintReceipt = async (saleId: string, supabase: any): Promise<v
       const { data: globalSettings } = await supabase
         .from('settings')
         .select('*')
+        .is('department_id', null)
         .maybeSingle();
       settings = globalSettings;
+    }
+
+    // If still no settings, try any settings record
+    if (!settings) {
+      const { data: anySettings } = await supabase
+        .from('settings')
+        .select('*')
+        .limit(1)
+        .maybeSingle();
+      settings = anySettings;
     }
 
     // Fetch customer info if available
@@ -473,10 +484,11 @@ export const autoPrintReceipt = async (saleId: string, supabase: any): Promise<v
     const receiptData: ReceiptData = {
       receiptNumber: sale.receipt_number,
       items: sale.sale_items.map((item: any) => ({
-        name: item.item_name,
+        name: item.item_name || item.name,
         quantity: item.quantity,
         price: item.unit_price,
-        subtotal: item.subtotal,
+        subtotal: item.total || item.subtotal,
+        scentMixture: item.scent_mixture,
       })),
       subtotal: sale.subtotal,
       tax: sale.tax || 0,
@@ -496,6 +508,8 @@ export const autoPrintReceipt = async (saleId: string, supabase: any): Promise<v
         name: settings?.business_name || 'DOTCOM BROTHERS LTD',
         address: settings?.business_address || 'Kasangati opp Kasangati Police Station',
         phone: settings?.business_phone || '+256745368426',
+        email: settings?.business_email,
+        logo: settings?.logo_url,
         whatsapp: settings?.whatsapp_number || '+256745368426',
         website: settings?.website,
       },
