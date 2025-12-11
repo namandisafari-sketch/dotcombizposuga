@@ -14,57 +14,94 @@ Deno.serve(async (req) => {
     // Get auth header
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      throw new Error('No authorization header');
+      console.error('No authorization header provided');
+      return new Response(
+        JSON.stringify({ error: 'Authorization required' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      );
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? Deno.env.get('SUPABASE_PUBLISHABLE_KEY') ?? '';
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+
+    if (!supabaseUrl || !serviceRoleKey) {
+      console.error('Missing required environment variables');
+      return new Response(
+        JSON.stringify({ error: 'Server configuration error' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      );
     }
 
     // Create client with user's token for auth check
-    const token = authHeader.replace('Bearer ', '');
-    const userClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: authHeader } } }
-    );
+    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
 
     // Verify the calling user
     const { data: { user }, error: userError } = await userClient.auth.getUser();
     
-    if (userError || !user) {
-      throw new Error('Unauthorized');
+    if (userError) {
+      console.error('Auth error:', userError.message);
+      return new Response(
+        JSON.stringify({ error: 'Authentication failed. Please log in again.' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      );
     }
 
-    // Check if user is admin
-    const { data: roles } = await userClient
+    if (!user) {
+      console.error('No user found in token');
+      return new Response(
+        JSON.stringify({ error: 'User not found. Please log in again.' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      );
+    }
+
+    console.log('Authenticated user:', user.id);
+
+    // Check if user is admin using service role client to bypass RLS
+    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+    
+    const { data: roles, error: roleCheckError } = await supabaseAdmin
       .from('user_roles')
       .select('role')
       .eq('user_id', user.id)
       .eq('role', 'admin')
       .maybeSingle();
 
-    if (!roles) {
-      throw new Error('Only admins can create users');
+    if (roleCheckError) {
+      console.error('Role check error:', roleCheckError);
     }
 
-    // Create service role client for admin operations
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+    if (!roles) {
+      console.error('User is not admin:', user.id);
+      return new Response(
+        JSON.stringify({ error: 'Only admins can create users' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 }
+      );
+    }
 
     const { email, password, fullName, role, departmentId, navPermissions } = await req.json();
 
     if (!email || !password || !fullName || !role) {
-      throw new Error('Missing required fields: email, password, fullName, and role are required.');
+      return new Response(
+        JSON.stringify({ error: 'Missing required fields: email, password, fullName, and role are required.' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
     }
 
     // Department is required for non-admin users
     if (role !== 'admin' && !departmentId) {
-      throw new Error('Department is required for non-admin users.');
+      return new Response(
+        JSON.stringify({ error: 'Department is required for non-admin users.' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
     }
 
     console.log(`Creating user: ${email}`);
 
     // Create user account
-    const { data: authData, error: authError } = await supabaseClient.auth.admin.createUser({
+    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
       email_confirm: true,
@@ -74,20 +111,30 @@ Deno.serve(async (req) => {
     });
 
     if (authError) {
-      if (authError.code === 'email_exists') {
+      console.error('Auth creation error:', authError);
+      if (authError.code === 'email_exists' || authError.message?.includes('already been registered')) {
         return new Response(
           JSON.stringify({ error: 'A user with this email already exists.' }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
         );
       }
-      throw authError;
+      return new Response(
+        JSON.stringify({ error: `Failed to create user: ${authError.message}` }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      );
     }
-    if (!authData.user) throw new Error('Failed to create user');
+
+    if (!authData.user) {
+      return new Response(
+        JSON.stringify({ error: 'Failed to create user account' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      );
+    }
 
     console.log(`User created with ID: ${authData.user.id}`);
 
-    // Create profile (trigger may not be set up)
-    const { error: profileError } = await supabaseClient
+    // Create profile
+    const { error: profileError } = await supabaseAdmin
       .from('profiles')
       .upsert({
         id: authData.user.id,
@@ -98,50 +145,32 @@ Deno.serve(async (req) => {
 
     if (profileError) {
       console.error('Profile creation error:', profileError);
-      // Don't fail - profile might already exist from trigger
     }
 
-    // First delete all existing roles, then insert the new one
-    const { error: deleteError } = await supabaseClient
+    // Delete any existing roles for this user
+    await supabaseAdmin
       .from('user_roles')
       .delete()
       .eq('user_id', authData.user.id);
 
-    if (deleteError) {
-      console.error('Role deletion error:', deleteError);
-    }
-
-    // Insert new role (we deleted existing ones above)
-    const { error: roleError } = await supabaseClient
+    // Insert new role with nav_permissions column (not separate table)
+    const { error: roleError } = await supabaseAdmin
       .from('user_roles')
       .insert({
         user_id: authData.user.id,
         role: role,
         department_id: departmentId || null,
+        nav_permissions: navPermissions && Array.isArray(navPermissions) ? navPermissions : [],
       });
 
     if (roleError) {
       console.error('Role creation error:', roleError);
-      throw roleError;
-    }
-
-    // Insert navigation permissions if provided and user is not admin
-    if (navPermissions && Array.isArray(navPermissions) && navPermissions.length > 0 && role !== 'admin') {
-      // Deduplicate permissions using Set
-      const uniquePermissions = Array.from(new Set(navPermissions));
-      const permissions = uniquePermissions.map((path: string) => ({
-        user_id: authData.user.id,
-        nav_path: path,
-      }));
-      
-      const { error: permError } = await supabaseClient
-        .from('user_nav_permissions')
-        .insert(permissions);
-      
-      if (permError) {
-        console.error('Navigation permissions error:', permError);
-        // Don't fail the entire operation for permissions error
-      }
+      // Try to clean up the user if role creation fails
+      await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+      return new Response(
+        JSON.stringify({ error: 'Failed to assign user role' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      );
     }
 
     console.log(`User setup complete: ${email}`);
@@ -151,10 +180,11 @@ Deno.serve(async (req) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
-  } catch (error) {
-    console.error('Error in create-staff-user:', error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Error in create-staff-user:', errorMessage);
     return new Response(
-      JSON.stringify({ error: 'Failed to create user. Please contact support.' }),
+      JSON.stringify({ error: errorMessage || 'Failed to create user. Please contact support.' }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     );
   }
