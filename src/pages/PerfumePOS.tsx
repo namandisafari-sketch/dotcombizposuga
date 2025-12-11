@@ -65,39 +65,79 @@ const PerfumePOS = () => {
 
   // Fetch perfume products (exclude Oil Perfume master stock)
   const { data: perfumeProducts = [] } = useQuery({
-    queryKey: ["perfume-products", selectedDepartmentId, barcode],
+    queryKey: ["perfume-products", selectedDepartmentId],
     queryFn: async () => {
-      let query = supabase
+      const { data, error } = await supabase
         .from("products")
         .select("*")
         .eq("department_id", selectedDepartmentId)
         .eq("is_archived", false)
         .neq("name", "Oil Perfume"); // Exclude master stock - it's capital, not a product
       
-      if (barcode) {
-        query = query.or(`barcode.eq.${barcode},internal_barcode.eq.${barcode}`);
-      }
-      
-      const { data, error } = await query;
       if (error) throw error;
-      
-      // Auto-open refill dialog if barcode matches exactly one product
-      if (barcode && data && data.length === 1) {
-        setSelectedCustomerId(selectedCustomer);
-        setShowPerfumeRefillDialog(true);
-        toast.success(`Found: ${data[0].name}`);
-        setBarcode(""); // Clear barcode after successful match
-      } else if (barcode && data && data.length === 0) {
-        toast.error("No product found with this barcode");
-        setBarcode("");
-      } else if (barcode && data && data.length > 1) {
-        toast.info(`Found ${data.length} products. Please select one.`);
-      }
-      
       return data || [];
     },
     enabled: !!selectedDepartmentId,
   });
+
+  // Handle barcode scanning to auto-add to cart
+  const handleBarcodeSearch = async (scannedBarcode: string) => {
+    if (!scannedBarcode || !selectedDepartmentId) return;
+    
+    const { data: matchedProducts, error } = await supabase
+      .from("products")
+      .select("*")
+      .eq("department_id", selectedDepartmentId)
+      .eq("is_archived", false)
+      .neq("name", "Oil Perfume")
+      .or(`barcode.eq.${scannedBarcode},internal_barcode.eq.${scannedBarcode}`);
+    
+    if (error) {
+      toast.error("Error searching for product");
+      setBarcode("");
+      return;
+    }
+    
+    if (!matchedProducts || matchedProducts.length === 0) {
+      toast.error("No product found with this barcode");
+      setBarcode("");
+      return;
+    }
+    
+    if (matchedProducts.length > 1) {
+      toast.info(`Found ${matchedProducts.length} products. Please select one from the list.`);
+      setBarcode("");
+      return;
+    }
+    
+    // Auto-add single matched product to cart
+    const product = matchedProducts[0];
+    const currentStock = product.current_stock || product.stock || 0;
+    
+    if (currentStock <= 0) {
+      toast.error(`${product.name} is out of stock`);
+      setBarcode("");
+      return;
+    }
+    
+    const pricingTiers = product.pricing_tiers as { retail?: number; wholesale?: number } | null;
+    const retailPrice = pricingTiers?.retail || product.selling_price || product.price;
+    
+    addToCart({
+      id: `barcode-${product.id}-${Date.now()}`,
+      name: product.name,
+      price: retailPrice,
+      quantity: 1,
+      type: "shop_product",
+      productId: product.id,
+      customerType: "retail",
+      subtotal: retailPrice,
+      trackingType: product.tracking_type || "quantity",
+    });
+    
+    toast.success(`${product.name} added to cart`);
+    setBarcode("");
+  };
 
   // Fetch customers
   const { data: customers = [] } = useQuery({
@@ -590,12 +630,12 @@ const PerfumePOS = () => {
                   <div className="relative">
                     <Barcode className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
-                      placeholder="Scan or enter barcode..."
+                      placeholder="Scan barcode to add product..."
                       value={barcode}
                       onChange={(e) => setBarcode(e.target.value)}
                       onKeyDown={(e) => {
                         if (e.key === "Enter" && barcode) {
-                          queryClient.invalidateQueries({ queryKey: ["perfume-products"] });
+                          handleBarcodeSearch(barcode);
                         }
                       }}
                       className="pl-10"
@@ -617,13 +657,13 @@ const PerfumePOS = () => {
                 </CardContent>
               </Card>
 
-              {/* Branded Perfumes */}
+              {/* Perfume Products */}
               {perfumeProducts.filter(p => p.tracking_type === 'quantity').length > 0 && (
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <Package className="w-5 h-5" />
-                      Branded Perfumes
+                      Perfume Products
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-2 max-h-[400px] overflow-y-auto">
