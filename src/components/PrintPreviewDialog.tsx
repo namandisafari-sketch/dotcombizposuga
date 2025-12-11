@@ -4,7 +4,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -16,9 +15,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Printer, Download, X, ZoomIn, ZoomOut, RotateCcw } from "lucide-react";
+import { Printer, Download, X, ZoomIn, ZoomOut, RotateCcw, Settings, ChevronUp, ChevronDown } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { cn } from "@/lib/utils";
 
 interface PrintPreviewDialogProps {
   open: boolean;
@@ -40,13 +41,26 @@ export const PrintPreviewDialog = ({
   onDownloadPdf,
 }: PrintPreviewDialogProps) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const isMobile = useIsMobile();
   const [copies, setCopies] = useState(1);
   const [paperSize, setPaperSize] = useState<"receipt" | "a4" | "letter">(
     documentType === "receipt" ? "receipt" : "a4"
   );
   const [orientation, setOrientation] = useState<"portrait" | "landscape">("portrait");
-  const [zoom, setZoom] = useState(100);
+  const [zoom, setZoom] = useState(isMobile ? 60 : 100);
   const [isPrinting, setIsPrinting] = useState(false);
+  const [showSettings, setShowSettings] = useState(!isMobile);
+
+  // Update zoom when mobile changes
+  useEffect(() => {
+    if (isMobile) {
+      setZoom(60);
+      setShowSettings(false);
+    } else {
+      setZoom(100);
+      setShowSettings(true);
+    }
+  }, [isMobile]);
 
   // Update iframe content when documentHtml changes
   useEffect(() => {
@@ -185,8 +199,8 @@ export const PrintPreviewDialog = ({
   };
 
   const zoomIn = () => setZoom((prev) => Math.min(prev + 25, 200));
-  const zoomOut = () => setZoom((prev) => Math.max(prev - 25, 50));
-  const resetZoom = () => setZoom(100);
+  const zoomOut = () => setZoom((prev) => Math.max(prev - 25, 25));
+  const resetZoom = () => setZoom(isMobile ? 60 : 100);
 
   const getPreviewWidth = () => {
     switch (paperSize) {
@@ -204,7 +218,7 @@ export const PrintPreviewDialog = ({
   const getPreviewHeight = () => {
     switch (paperSize) {
       case "receipt":
-        return 800; // Increased to show back page
+        return 800;
       case "a4":
         return orientation === "portrait" ? 842 : 595;
       case "letter":
@@ -214,145 +228,177 @@ export const PrintPreviewDialog = ({
     }
   };
 
+  // Mobile Settings Panel Component
+  const SettingsPanel = () => (
+    <div className={cn(
+      "space-y-4",
+      isMobile ? "p-4" : ""
+    )}>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-2">
+          <Label htmlFor="copies" className="text-sm font-medium">
+            Copies
+          </Label>
+          <Input
+            id="copies"
+            type="number"
+            min={1}
+            max={99}
+            value={copies}
+            onChange={(e) => setCopies(Math.max(1, parseInt(e.target.value) || 1))}
+            className="h-10"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="paperSize" className="text-sm font-medium">
+            Paper Size
+          </Label>
+          <Select
+            value={paperSize}
+            onValueChange={(value: "receipt" | "a4" | "letter") => setPaperSize(value)}
+          >
+            <SelectTrigger id="paperSize" className="h-10">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="bg-popover border shadow-lg z-50">
+              <SelectItem value="receipt">Receipt (80mm)</SelectItem>
+              <SelectItem value="a4">A4</SelectItem>
+              <SelectItem value="letter">Letter</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {paperSize !== "receipt" && (
+        <div className="space-y-2">
+          <Label htmlFor="orientation" className="text-sm font-medium">
+            Orientation
+          </Label>
+          <Select
+            value={orientation}
+            onValueChange={(value: "portrait" | "landscape") => setOrientation(value)}
+          >
+            <SelectTrigger id="orientation" className="h-10">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="bg-popover border shadow-lg z-50">
+              <SelectItem value="portrait">Portrait</SelectItem>
+              <SelectItem value="landscape">Landscape</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+      {!isMobile && (
+        <>
+          <Separator />
+          <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
+            Preview Controls
+          </h3>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="icon" onClick={zoomOut} className="h-8 w-8">
+              <ZoomOut className="h-4 w-4" />
+            </Button>
+            <span className="text-sm font-medium min-w-[50px] text-center">{zoom}%</span>
+            <Button variant="outline" size="icon" onClick={zoomIn} className="h-8 w-8">
+              <ZoomIn className="h-4 w-4" />
+            </Button>
+            <Button variant="outline" size="icon" onClick={resetZoom} className="h-8 w-8">
+              <RotateCcw className="h-4 w-4" />
+            </Button>
+          </div>
+          <Separator />
+          <div className="p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
+            <p className="text-xs text-blue-700 dark:text-blue-300">
+              <strong>Tip:</strong> Click "Print" to open the system print dialog where you
+              can select from available printers.
+            </p>
+          </div>
+        </>
+      )}
+    </div>
+  );
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl h-[90vh] flex flex-col p-0 gap-0 bg-background">
-        <DialogHeader className="px-6 py-4 border-b bg-muted/30">
-          <div className="flex items-center justify-between">
-            <DialogTitle className="text-xl font-semibold flex items-center gap-2">
-              <Printer className="h-5 w-5" />
-              Print Preview - {documentTitle}
+      <DialogContent className={cn(
+        "flex flex-col p-0 gap-0 bg-background",
+        isMobile 
+          ? "max-w-[100vw] w-full h-[100dvh] max-h-[100dvh] rounded-none m-0" 
+          : "max-w-5xl h-[90vh]"
+      )}>
+        {/* Header */}
+        <DialogHeader className={cn(
+          "px-4 py-3 border-b bg-muted/30 shrink-0",
+          isMobile ? "sticky top-0 z-10" : "px-6 py-4"
+        )}>
+          <div className="flex items-center justify-between gap-2">
+            <DialogTitle className={cn(
+              "font-semibold flex items-center gap-2 truncate",
+              isMobile ? "text-base" : "text-xl"
+            )}>
+              <Printer className={cn(isMobile ? "h-4 w-4" : "h-5 w-5", "shrink-0")} />
+              <span className="truncate">
+                {isMobile ? documentTitle : `Print Preview - ${documentTitle}`}
+              </span>
             </DialogTitle>
             <Button
               variant="ghost"
               size="icon"
               onClick={() => onOpenChange(false)}
-              className="h-8 w-8"
+              className="h-8 w-8 shrink-0"
             >
               <X className="h-4 w-4" />
             </Button>
           </div>
         </DialogHeader>
 
-        <div className="flex flex-1 overflow-hidden">
-          {/* Settings Panel */}
-          <div className="w-72 border-r bg-muted/20 p-4 flex flex-col gap-4 overflow-y-auto">
-            <div className="space-y-4">
-              <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
-                Print Settings
-              </h3>
-
-              <div className="space-y-2">
-                <Label htmlFor="copies" className="text-sm font-medium">
-                  Copies
-                </Label>
-                <Input
-                  id="copies"
-                  type="number"
-                  min={1}
-                  max={99}
-                  value={copies}
-                  onChange={(e) => setCopies(Math.max(1, parseInt(e.target.value) || 1))}
-                  className="h-9"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="paperSize" className="text-sm font-medium">
-                  Paper Size
-                </Label>
-                <Select
-                  value={paperSize}
-                  onValueChange={(value: "receipt" | "a4" | "letter") => setPaperSize(value)}
-                >
-                  <SelectTrigger id="paperSize" className="h-9">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-popover border shadow-lg z-50">
-                    <SelectItem value="receipt">Receipt (80mm)</SelectItem>
-                    <SelectItem value="a4">A4</SelectItem>
-                    <SelectItem value="letter">Letter</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {paperSize !== "receipt" && (
-                <div className="space-y-2">
-                  <Label htmlFor="orientation" className="text-sm font-medium">
-                    Orientation
-                  </Label>
-                  <Select
-                    value={orientation}
-                    onValueChange={(value: "portrait" | "landscape") => setOrientation(value)}
-                  >
-                    <SelectTrigger id="orientation" className="h-9">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-popover border shadow-lg z-50">
-                      <SelectItem value="portrait">Portrait</SelectItem>
-                      <SelectItem value="landscape">Landscape</SelectItem>
-                    </SelectContent>
-                  </Select>
+        {/* Mobile Layout */}
+        {isMobile ? (
+          <div className="flex-1 flex flex-col overflow-hidden">
+            {/* Collapsible Settings */}
+            <div className="border-b bg-muted/20">
+              <button
+                onClick={() => setShowSettings(!showSettings)}
+                className="w-full px-4 py-3 flex items-center justify-between text-sm font-medium hover:bg-muted/40 transition-colors"
+              >
+                <span className="flex items-center gap-2">
+                  <Settings className="h-4 w-4" />
+                  Print Settings
+                </span>
+                {showSettings ? (
+                  <ChevronUp className="h-4 w-4" />
+                ) : (
+                  <ChevronDown className="h-4 w-4" />
+                )}
+              </button>
+              {showSettings && (
+                <div className="border-t">
+                  <SettingsPanel />
                 </div>
               )}
-
-              <Separator />
-
-              <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
-                Preview Controls
-              </h3>
-
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="icon" onClick={zoomOut} className="h-8 w-8">
-                  <ZoomOut className="h-4 w-4" />
-                </Button>
-                <span className="text-sm font-medium min-w-[50px] text-center">{zoom}%</span>
-                <Button variant="outline" size="icon" onClick={zoomIn} className="h-8 w-8">
-                  <ZoomIn className="h-4 w-4" />
-                </Button>
-                <Button variant="outline" size="icon" onClick={resetZoom} className="h-8 w-8">
-                  <RotateCcw className="h-4 w-4" />
-                </Button>
-              </div>
-
-              <Separator />
-
-              <div className="p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
-                <p className="text-xs text-blue-700 dark:text-blue-300">
-                  <strong>Tip:</strong> Click "Print" to open the system print dialog where you
-                  can select from available printers.
-                </p>
-              </div>
             </div>
 
-            <div className="mt-auto space-y-2">
-              <Button
-                onClick={handlePrint}
-                disabled={isPrinting}
-                className="w-full gap-2"
-                size="lg"
-              >
-                <Printer className="h-4 w-4" />
-                {isPrinting ? "Printing..." : "Print"}
+            {/* Mobile Zoom Controls */}
+            <div className="px-4 py-2 border-b bg-background flex items-center justify-center gap-3">
+              <Button variant="outline" size="sm" onClick={zoomOut} className="h-8 px-3">
+                <ZoomOut className="h-4 w-4" />
               </Button>
-              <Button
-                variant="outline"
-                onClick={handleDownloadPdf}
-                className="w-full gap-2"
-                size="lg"
-              >
-                <Download className="h-4 w-4" />
-                Download PDF
+              <span className="text-sm font-medium min-w-[50px] text-center">{zoom}%</span>
+              <Button variant="outline" size="sm" onClick={zoomIn} className="h-8 px-3">
+                <ZoomIn className="h-4 w-4" />
+              </Button>
+              <Button variant="outline" size="sm" onClick={resetZoom} className="h-8 px-3">
+                <RotateCcw className="h-4 w-4" />
               </Button>
             </div>
-          </div>
 
-          {/* Preview Area */}
-          <div className="flex-1 bg-muted/50 overflow-hidden">
-            <ScrollArea className="h-full">
-              <div className="p-8 flex justify-center">
+            {/* Preview Area */}
+            <div className="flex-1 bg-muted/50 overflow-auto">
+              <div className="p-4 flex justify-center min-h-full">
                 <div
-                  className="bg-white shadow-xl rounded-lg overflow-hidden transition-transform"
+                  className="bg-white shadow-xl rounded-lg overflow-hidden transition-transform origin-top"
                   style={{
                     transform: `scale(${zoom / 100})`,
                     transformOrigin: "top center",
@@ -374,9 +420,97 @@ export const PrintPreviewDialog = ({
                   />
                 </div>
               </div>
-            </ScrollArea>
+            </div>
+
+            {/* Mobile Action Buttons - Fixed at bottom */}
+            <div className="shrink-0 p-4 border-t bg-background space-y-2 safe-area-inset-bottom">
+              <div className="grid grid-cols-2 gap-3">
+                <Button
+                  onClick={handlePrint}
+                  disabled={isPrinting}
+                  className="gap-2 h-12"
+                  size="lg"
+                >
+                  <Printer className="h-4 w-4" />
+                  {isPrinting ? "Printing..." : "Print"}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleDownloadPdf}
+                  className="gap-2 h-12"
+                  size="lg"
+                >
+                  <Download className="h-4 w-4" />
+                  PDF
+                </Button>
+              </div>
+            </div>
           </div>
-        </div>
+        ) : (
+          /* Desktop Layout */
+          <div className="flex flex-1 overflow-hidden">
+            {/* Settings Panel */}
+            <div className="w-72 border-r bg-muted/20 p-4 flex flex-col gap-4 overflow-y-auto">
+              <div className="space-y-4">
+                <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
+                  Print Settings
+                </h3>
+                <SettingsPanel />
+              </div>
+
+              <div className="mt-auto space-y-2">
+                <Button
+                  onClick={handlePrint}
+                  disabled={isPrinting}
+                  className="w-full gap-2"
+                  size="lg"
+                >
+                  <Printer className="h-4 w-4" />
+                  {isPrinting ? "Printing..." : "Print"}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleDownloadPdf}
+                  className="w-full gap-2"
+                  size="lg"
+                >
+                  <Download className="h-4 w-4" />
+                  Download PDF
+                </Button>
+              </div>
+            </div>
+
+            {/* Preview Area */}
+            <div className="flex-1 bg-muted/50 overflow-hidden">
+              <ScrollArea className="h-full">
+                <div className="p-8 flex justify-center">
+                  <div
+                    className="bg-white shadow-xl rounded-lg overflow-hidden transition-transform"
+                    style={{
+                      transform: `scale(${zoom / 100})`,
+                      transformOrigin: "top center",
+                      width: getPreviewWidth(),
+                      minHeight: getPreviewHeight(),
+                    }}
+                  >
+                    <iframe
+                      ref={iframeRef}
+                      title="Print Preview"
+                      className="w-full border-0 bg-white"
+                      style={{
+                        width: getPreviewWidth(),
+                        height: getPreviewHeight(),
+                        minHeight: getPreviewHeight(),
+                        pointerEvents: "none",
+                      }}
+                      srcDoc={documentHtml || "<html><body><p>No content to preview</p></body></html>"}
+                    />
+                  </div>
+                </div>
+              </ScrollArea>
+            </div>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
