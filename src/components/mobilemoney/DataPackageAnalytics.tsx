@@ -69,7 +69,7 @@ export const DataPackageAnalytics = ({ departmentId, dateFilter = "all" }: DataP
         .select(`
           item_name,
           quantity,
-          subtotal,
+          total,
           sale_id,
           sales!inner (
             created_at,
@@ -117,7 +117,7 @@ export const DataPackageAnalytics = ({ departmentId, dateFilter = "all" }: DataP
         const stats = statsMap.get(item.item_name);
         if (stats) {
           stats.totalSold += item.quantity;
-          stats.totalRevenue += Number(item.subtotal);
+          stats.totalRevenue += Number(item.total);
         }
       });
 

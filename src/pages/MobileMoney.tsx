@@ -75,7 +75,7 @@ const MobileMoney = () => {
   const [productDialogOpen, setProductDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any>(null);
 
-  const [posCart, setPosCart] = useState<Array<{ item: any; itemType: 'service' | 'product'; quantity: number; customPrice?: number }>>([]);
+  const [posCart, setPosCart] = useState<Array<{ item: any; itemType: 'service' | 'product' | 'data_package'; quantity: number; customPrice?: number }>>([]);
   const [posCustomerPhone, setPosCustomerPhone] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [showReceiptDialog, setShowReceiptDialog] = useState(false);
@@ -225,6 +225,22 @@ const MobileMoney = () => {
         .from("credits")
         .select("*")
         .eq("department_id", selectedDeptId);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!selectedDeptId,
+  });
+
+  // Fetch data packages for selected department
+  const { data: dataPackages } = useQuery({
+    queryKey: ["mobile-money-data-packages-supabase", selectedDeptId],
+    queryFn: async () => {
+      if (!selectedDeptId) return [];
+      const { data, error } = await supabase
+        .from("data_packages")
+        .select("*")
+        .eq("department_id", selectedDeptId)
+        .eq("is_active", true);
       if (error) throw error;
       return data || [];
     },
@@ -388,6 +404,8 @@ const MobileMoney = () => {
       const total = posCart.reduce((sum, item) => {
         const price = item.customPrice || (item.itemType === 'service' 
           ? item.item.base_price 
+          : item.itemType === 'data_package'
+          ? item.item.price
           : item.item.selling_price || item.item.price || 0);
         return sum + (price * item.quantity);
       }, 0);
@@ -420,6 +438,8 @@ const MobileMoney = () => {
       const saleItems = posCart.map(cartItem => {
         const unitPrice = cartItem.customPrice || (cartItem.itemType === 'service' 
           ? cartItem.item.base_price 
+          : cartItem.itemType === 'data_package'
+          ? cartItem.item.price
           : cartItem.item.selling_price || cartItem.item.price);
         
         return {
@@ -462,9 +482,11 @@ const MobileMoney = () => {
         items: posCart.map(item => {
           const price = item.customPrice || (item.itemType === 'service' 
             ? item.item.base_price 
-            : item.item.selling_price);
+            : item.itemType === 'data_package'
+            ? item.item.price
+            : item.item.selling_price || item.item.price);
           return {
-            name: item.itemType === 'service' ? item.item.name : item.item.name,
+            name: item.item.name,
             quantity: item.quantity,
             price: price,
             subtotal: price * item.quantity,
@@ -528,8 +550,8 @@ const MobileMoney = () => {
       unit: product.unit,
       cost_price: product.cost_price,
       selling_price: product.selling_price,
-      current_stock: product.current_stock,
-      reorder_level: product.reorder_level,
+      current_stock: product.stock ?? product.current_stock ?? 0,
+      reorder_level: product.min_stock ?? product.reorder_level ?? 10,
       barcode: product.barcode || "",
       imei: product.imei || "",
       serial_number: product.serial_number || "",
@@ -540,9 +562,10 @@ const MobileMoney = () => {
     setProductDialogOpen(true);
   };
 
-  const addToCart = async (item: any, type: 'service' | 'product') => {
+  const addToCart = async (item: any, type: 'service' | 'product' | 'data_package') => {
     if (type === 'product') {
-      if (item.current_stock <= 0) {
+      const stockValue = item.stock ?? item.current_stock ?? 0;
+      if (stockValue <= 0) {
         toast.error("Product out of stock");
         return;
       }
@@ -561,7 +584,8 @@ const MobileMoney = () => {
 
     if (existingIndex >= 0) {
       const newCart = [...posCart];
-      const maxQty = type === 'product' ? item.current_stock : 999;
+      const stockValue = item.stock ?? item.current_stock ?? 999;
+      const maxQty = type === 'product' ? stockValue : 999;
       
       if (newCart[existingIndex].quantity < maxQty) {
         newCart[existingIndex].quantity += 1;
@@ -572,7 +596,8 @@ const MobileMoney = () => {
       }
     } else {
       setPosCart([...posCart, { item, itemType: type, quantity: 1 }]);
-      toast.success(`${type === 'service' ? 'Service' : 'Product'} added to cart`);
+      const typeLabel = type === 'service' ? 'Service' : type === 'product' ? 'Product' : 'Data Package';
+      toast.success(`${typeLabel} added to cart`);
     }
   };
 
@@ -583,7 +608,8 @@ const MobileMoney = () => {
 
   const updateCartQuantity = (index: number, newQuantity: number) => {
     const item = posCart[index];
-    const maxQty = item.itemType === 'product' ? item.item.current_stock : 999;
+    const stockValue = item.item.stock ?? item.item.current_stock ?? 999;
+    const maxQty = item.itemType === 'product' ? stockValue : 999;
 
     if (newQuantity < 1 || newQuantity > maxQty) {
       toast.error(`Quantity must be between 1 and ${maxQty}`);
@@ -598,6 +624,8 @@ const MobileMoney = () => {
   const cartTotal = posCart.reduce((sum, item) => {
     const price = item.customPrice || (item.itemType === 'service' 
       ? item.item.base_price 
+      : item.itemType === 'data_package'
+      ? item.item.price
       : item.item.selling_price);
     return sum + (price * item.quantity);
   }, 0);
@@ -752,8 +780,9 @@ const MobileMoney = () => {
                     <h3 className="font-semibold mb-3">Products</h3>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                       {products?.map((product: any) => {
-                        const isOutOfStock = product.current_stock <= 0;
-                        const isLowStock = product.current_stock > 0 && product.current_stock <= product.reorder_level;
+                        const stockValue = product.stock ?? product.current_stock ?? 0;
+                        const isOutOfStock = stockValue <= 0;
+                        const isLowStock = stockValue > 0 && stockValue <= (product.min_stock ?? product.reorder_level ?? 10);
                         
                         return (
                           <Button
@@ -769,7 +798,7 @@ const MobileMoney = () => {
                             </span>
                             <div className="flex gap-1 mt-1">
                               <Badge variant={isOutOfStock ? "destructive" : isLowStock ? "secondary" : "default"} className="text-xs">
-                                {isOutOfStock ? "Out of Stock" : `Stock: ${product.current_stock}`}
+                                {isOutOfStock ? "Out of Stock" : `Stock: ${stockValue}`}
                               </Badge>
                               {isLowStock && !isOutOfStock && (
                                 <Badge variant="secondary" className="text-xs">
@@ -781,6 +810,34 @@ const MobileMoney = () => {
                           </Button>
                         );
                       })}
+                    </div>
+                  </div>
+
+                  {/* Data Packages */}
+                  <div>
+                    <h3 className="font-semibold mb-3">Data Packages</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                      {dataPackages?.map((pkg: any) => (
+                        <Button
+                          key={pkg.id}
+                          variant="outline"
+                          className="h-auto py-4 flex flex-col items-start"
+                          onClick={() => addToCart(pkg, 'data_package')}
+                        >
+                          <span className="font-semibold">{pkg.name}</span>
+                          <span className="text-sm text-muted-foreground">
+                            {pkg.data_amount}{pkg.data_unit}
+                          </span>
+                          <span className="text-sm text-muted-foreground">
+                            UGX {pkg.price?.toLocaleString()}
+                          </span>
+                        </Button>
+                      ))}
+                      {(!dataPackages || dataPackages.length === 0) && (
+                        <p className="text-sm text-muted-foreground col-span-3">
+                          No data packages available. Add them in the Data Packages tab.
+                        </p>
+                      )}
                     </div>
                   </div>
                 </CardContent>
@@ -821,7 +878,11 @@ const MobileMoney = () => {
 
                   <div className="space-y-2">
                     {posCart.map((item, index) => {
-                      const basePrice = item.itemType === 'service' ? item.item.base_price : item.item.selling_price;
+                      const basePrice = item.itemType === 'service' 
+                        ? item.item.base_price 
+                        : item.itemType === 'data_package' 
+                        ? item.item.price 
+                        : item.item.selling_price || item.item.price;
                       const displayPrice = item.customPrice || basePrice;
                       const canCustomize = true; // Allow custom prices for all mobile money services and products
                       
@@ -833,7 +894,7 @@ const MobileMoney = () => {
                                 {item.item.name}
                               </p>
                               <p className="text-sm text-muted-foreground">
-                                {item.itemType === 'service' ? 'Service' : 'Product'}
+                                {item.itemType === 'service' ? 'Service' : item.itemType === 'product' ? 'Product' : 'Data Package'}
                                 {item.customPrice && <span className="text-primary ml-2">(Custom Price)</span>}
                               </p>
                             </div>
@@ -861,7 +922,7 @@ const MobileMoney = () => {
                             <Input
                               type="number"
                               min="1"
-                              max={item.itemType === 'product' ? item.item.current_stock : 999}
+                              max={item.itemType === 'product' ? (item.item.stock ?? item.item.current_stock ?? 999) : 999}
                               value={item.quantity}
                               onChange={(e) => updateCartQuantity(index, parseInt(e.target.value) || 1)}
                               className="w-20"
@@ -1157,8 +1218,10 @@ const MobileMoney = () => {
               <CardContent>
                 <div className="space-y-2">
                   {products?.map((product: any) => {
-                    const isOutOfStock = product.current_stock <= 0;
-                    const isLowStock = product.current_stock > 0 && product.current_stock <= product.reorder_level;
+                    const stockValue = product.stock ?? product.current_stock ?? 0;
+                    const minStockValue = product.min_stock ?? product.reorder_level ?? 10;
+                    const isOutOfStock = stockValue <= 0;
+                    const isLowStock = stockValue > 0 && stockValue <= minStockValue;
                     
                     return (
                       <div key={product.id} className="flex items-center justify-between p-4 border rounded-lg">
@@ -1176,8 +1239,8 @@ const MobileMoney = () => {
                             )}
                           </div>
                           <div className="flex gap-4 mt-1 text-sm text-muted-foreground">
-                            <span className="font-medium text-foreground">Stock: {product.current_stock}</span>
-                            <span>Reorder at: {product.reorder_level}</span>
+                            <span className="font-medium text-foreground">Stock: {stockValue}</span>
+                            <span>Reorder at: {minStockValue}</span>
                             <span className="font-medium text-primary">UGX {product.selling_price?.toLocaleString()}</span>
                           </div>
                         </div>
@@ -1322,7 +1385,7 @@ const MobileMoney = () => {
                                   serviceStats[name] = { count: 0, revenue: 0 };
                                 }
                                 serviceStats[name].count += item.quantity;
-                                serviceStats[name].revenue += Number(item.subtotal);
+                                serviceStats[name].revenue += Number(item.total);
                               }
                             });
                           });
@@ -1381,7 +1444,7 @@ const MobileMoney = () => {
                                   productStats[name] = { count: 0, revenue: 0 };
                                 }
                                 productStats[name].count += item.quantity;
-                                productStats[name].revenue += Number(item.subtotal);
+                                productStats[name].revenue += Number(item.total);
                               }
                             });
                           });
@@ -1586,23 +1649,27 @@ const MobileMoney = () => {
                       </TableHeader>
                       <TableBody>
                         {(() => {
-                          const lowStockProducts = products?.filter((p: any) => 
-                            (p.current_stock || 0) <= (p.reorder_level || 10)
-                          ) || [];
+                          const lowStockProducts = products?.filter((p: any) => {
+                            const stockVal = p.stock ?? p.current_stock ?? 0;
+                            const minStock = p.min_stock ?? p.reorder_level ?? 10;
+                            return stockVal <= minStock;
+                          }) || [];
 
                           return lowStockProducts.length > 0 ? (
                             lowStockProducts.map((product: any) => {
-                              const isOutOfStock = (product.current_stock || 0) === 0;
+                              const stockVal = product.stock ?? product.current_stock ?? 0;
+                              const minStock = product.min_stock ?? product.reorder_level ?? 10;
+                              const isOutOfStock = stockVal === 0;
                               return (
                                 <TableRow key={product.id}>
                                   <TableCell className="font-medium">{product.name}</TableCell>
                                   <TableCell className="text-right">
                                     <Badge variant={isOutOfStock ? "destructive" : "secondary"}>
-                                      {product.current_stock || 0} {product.unit}
+                                      {stockVal} {product.unit}
                                     </Badge>
                                   </TableCell>
                                   <TableCell className="text-right">
-                                    {product.reorder_level} {product.unit}
+                                    {minStock} {product.unit}
                                   </TableCell>
                                   <TableCell className="text-right">
                                     {isOutOfStock ? (
