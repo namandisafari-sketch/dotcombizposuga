@@ -9,9 +9,12 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Droplet, Scale, Plus, Edit, AlertCircle, RefreshCw } from "lucide-react";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Droplet, Scale, Plus, Edit, AlertCircle, RefreshCw, Check, ChevronsUpDown } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { PERFUME_SCENTS } from "@/constants/perfumeScents";
 
 interface ScentStockManagerProps {
   departmentId: string;
@@ -33,13 +36,14 @@ export function ScentStockManager({ departmentId }: ScentStockManagerProps) {
   const [selectedScent, setSelectedScent] = useState<Scent | null>(null);
   const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
   const [addScentDialogOpen, setAddScentDialogOpen] = useState(false);
+  const [scentSelectorOpen, setScentSelectorOpen] = useState(false);
   
   // Form states for updating stock
   const [emptyBottleWeight, setEmptyBottleWeight] = useState<string>("");
   const [currentWeight, setCurrentWeight] = useState<string>("");
   const [density, setDensity] = useState<string>("0.9");
   
-  // Form states for new scent
+  // Form states for new scent - now using dropdown selection
   const [newScentName, setNewScentName] = useState("");
   const [newScentDescription, setNewScentDescription] = useState("");
 
@@ -393,17 +397,58 @@ export function ScentStockManager({ departmentId }: ScentStockManagerProps) {
       <Dialog open={addScentDialogOpen} onOpenChange={setAddScentDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add New Scent</DialogTitle>
+            <DialogTitle>Add Scent to Inventory</DialogTitle>
           </DialogHeader>
           
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>Scent Name</Label>
-              <Input
-                placeholder="e.g., Oud Wood"
-                value={newScentName}
-                onChange={(e) => setNewScentName(e.target.value)}
-              />
+              <Label>Select Scent *</Label>
+              <Popover open={scentSelectorOpen} onOpenChange={setScentSelectorOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={scentSelectorOpen}
+                    className="w-full justify-between"
+                  >
+                    {newScentName || "Search and select a scent..."}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-full p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Search scents..." />
+                    <CommandList>
+                      <CommandEmpty>No scent found.</CommandEmpty>
+                      <CommandGroup className="max-h-64 overflow-y-auto">
+                        {PERFUME_SCENTS
+                          .filter(scent => !scents.some(s => s.name.toLowerCase() === scent.toLowerCase()))
+                          .map((scent) => (
+                            <CommandItem
+                              key={scent}
+                              value={scent}
+                              onSelect={() => {
+                                setNewScentName(scent);
+                                setScentSelectorOpen(false);
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  newScentName === scent ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              {scent}
+                            </CommandItem>
+                          ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+              <p className="text-xs text-muted-foreground">
+                {PERFUME_SCENTS.length - scents.length} scents available to add
+              </p>
             </div>
             
             <div className="space-y-2">
@@ -417,7 +462,7 @@ export function ScentStockManager({ departmentId }: ScentStockManagerProps) {
           </div>
           
           <DialogFooter>
-            <Button variant="outline" onClick={() => setAddScentDialogOpen(false)}>
+            <Button variant="outline" onClick={() => { setAddScentDialogOpen(false); setNewScentName(""); }}>
               Cancel
             </Button>
             <Button 

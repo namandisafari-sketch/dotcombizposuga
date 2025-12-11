@@ -94,6 +94,8 @@ export default function PerfumeInventory() {
     stock: 0,
     min_stock: 10,
     sku: "",
+    unit: "pieces" as string,
+    quantity_per_unit: 1,
   });
 
   // Fetch perfume departments
@@ -369,6 +371,8 @@ export default function PerfumeInventory() {
             sku: productForm.sku,
             brand: productForm.brand,
             bottle_size_ml: productForm.bottle_size_ml,
+            unit: productForm.unit,
+            quantity_per_unit: productForm.quantity_per_unit,
           })
           .eq("id", editingProduct.id);
         if (error) throw error;
@@ -386,6 +390,8 @@ export default function PerfumeInventory() {
             sku: productForm.sku,
             brand: productForm.brand,
             bottle_size_ml: productForm.bottle_size_ml,
+            unit: productForm.unit,
+            quantity_per_unit: productForm.quantity_per_unit,
             department_id: selectedDepartmentId,
             tracking_type: "quantity" as const,
             is_active: true,
@@ -427,6 +433,8 @@ export default function PerfumeInventory() {
       stock: 0,
       min_stock: 10,
       sku: "",
+      unit: "pieces",
+      quantity_per_unit: 1,
     });
     setEditingProduct(null);
   };
@@ -444,6 +452,8 @@ export default function PerfumeInventory() {
       stock: product.stock || 0,
       min_stock: product.min_stock || 10,
       sku: product.sku || "",
+      unit: (product as any).unit || "pieces",
+      quantity_per_unit: (product as any).quantity_per_unit || 1,
     });
     setProductDialogOpen(true);
   };
@@ -724,7 +734,12 @@ export default function PerfumeInventory() {
                           "font-semibold",
                           (product.stock || 0) <= (product.min_stock || 5) && "text-destructive"
                         )}>
-                          {product.stock || 0}
+                          {product.stock || 0} {(product as any).unit || "pieces"}
+                          {(product as any).quantity_per_unit > 1 && (
+                            <span className="text-xs text-muted-foreground ml-1">
+                              ({((product.stock || 0) * ((product as any).quantity_per_unit || 1)).toLocaleString()} total items)
+                            </span>
+                          )}
                         </p>
                       </div>
                     </div>
@@ -945,6 +960,38 @@ export default function PerfumeInventory() {
                     onChange={(e) => setProductForm({...productForm, barcode: e.target.value})}
                     placeholder="For barcode scanning"
                   />
+                </div>
+                <div>
+                  <Label>Unit Type *</Label>
+                  <Select
+                    value={productForm.unit}
+                    onValueChange={(value) => setProductForm({...productForm, unit: value})}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover border shadow-lg z-50">
+                      <SelectItem value="pieces">Pieces</SelectItem>
+                      <SelectItem value="dozen">Dozen (12)</SelectItem>
+                      <SelectItem value="half_dozen">Half Dozen (6)</SelectItem>
+                      <SelectItem value="pack">Pack</SelectItem>
+                      <SelectItem value="box">Box</SelectItem>
+                      <SelectItem value="carton">Carton</SelectItem>
+                      <SelectItem value="set">Set</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Qty per Unit</Label>
+                  <Input
+                    type="number"
+                    value={productForm.quantity_per_unit}
+                    onChange={(e) => setProductForm({...productForm, quantity_per_unit: Number(e.target.value)})}
+                    placeholder="Items per unit"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {productForm.unit === "dozen" ? "12 items" : productForm.unit === "half_dozen" ? "6 items" : `${productForm.quantity_per_unit} items per ${productForm.unit}`}
+                  </p>
                 </div>
                 <div>
                   <Label>Current Stock *</Label>
