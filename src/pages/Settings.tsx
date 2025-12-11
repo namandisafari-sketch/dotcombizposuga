@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Settings as SettingsIcon, Upload, QrCode, Bell } from "lucide-react";
 import { toast } from "sonner";
 import { useState, useEffect, useRef } from "react";
@@ -32,6 +33,7 @@ const Settings = () => {
     logo_url: logoImage,
     website: "",
     seasonal_remark: "",
+    show_back_page: true,
   });
   const [qrCodeUrl, setQrCodeUrl] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -82,6 +84,7 @@ const Settings = () => {
         logo_url: settings.logo_url || logoImage,
         website: (settings as any).website || "",
         seasonal_remark: (settings as any).seasonal_remark || "",
+        show_back_page: (settings as any).show_back_page !== false,
       });
     } else if (selectedDepartmentId && selectedDepartmentId !== "global" && !departmentSettings) {
       // Reset to defaults when switching to a department without settings
@@ -94,6 +97,7 @@ const Settings = () => {
         logo_url: logoImage,
         website: "",
         seasonal_remark: "",
+        show_back_page: true,
       });
     }
   }, [selectedDepartmentId, departmentSettings, globalSettings]);
@@ -297,6 +301,21 @@ const Settings = () => {
                     <p className="text-xs text-muted-foreground">
                       This message will appear on all receipts
                     </p>
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 border rounded-lg">
+                    <div className="space-y-0.5">
+                      <Label>Show Back Page on Receipts</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Display "Powered by Kabejja Systems" section with QR codes
+                      </p>
+                    </div>
+                    <Switch
+                      checked={formData.show_back_page}
+                      onCheckedChange={(checked) =>
+                        setFormData({ ...formData, show_back_page: checked })
+                      }
+                    />
                   </div>
 
                   <Button

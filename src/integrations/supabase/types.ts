@@ -1370,6 +1370,7 @@ export type Database = {
           receipt_footer: string | null
           seasonal_remark: string | null
           settings_json: Json | null
+          show_back_page: boolean | null
           tax_rate: number | null
           updated_at: string | null
           website: string | null
@@ -1389,6 +1390,7 @@ export type Database = {
           receipt_footer?: string | null
           seasonal_remark?: string | null
           settings_json?: Json | null
+          show_back_page?: boolean | null
           tax_rate?: number | null
           updated_at?: string | null
           website?: string | null
@@ -1408,6 +1410,7 @@ export type Database = {
           receipt_footer?: string | null
           seasonal_remark?: string | null
           settings_json?: Json | null
+          show_back_page?: boolean | null
           tax_rate?: number | null
           updated_at?: string | null
           website?: string | null
