@@ -579,12 +579,18 @@ const PerfumePOS = () => {
       return mockSaleData;
     },
     onSuccess: async () => {
+      // Invalidate all relevant queries to refresh stock display
       queryClient.invalidateQueries({ queryKey: ["perfume-today-revenue"] });
       queryClient.invalidateQueries({ queryKey: ["perfume-today-sales-count"] });
       queryClient.invalidateQueries({ queryKey: ["perfume-recent-sales"] });
       queryClient.invalidateQueries({ queryKey: ["perfume-stock"] });
       queryClient.invalidateQueries({ queryKey: ["popular-scents"] });
       queryClient.invalidateQueries({ queryKey: ["perfume-low-stock"] });
+      queryClient.invalidateQueries({ queryKey: ["perfume-products"] });
+      queryClient.invalidateQueries({ queryKey: ["master-perfume-stock"] });
+      queryClient.invalidateQueries({ queryKey: ["scents-with-stock"] });
+      queryClient.invalidateQueries({ queryKey: ["oil-perfume-stock"] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
       
       toast.success("Sale completed successfully!");
       setShowReceiptDialog(true);
