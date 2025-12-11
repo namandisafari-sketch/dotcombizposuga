@@ -345,7 +345,10 @@ const Sales = () => {
 
     const existingItem = cart.find((i) => i.id === cartItemId);
     
-    let price = type === "product" ? item.selling_price : item.base_price;
+    // Use price field (or selling_price/base_price as fallback)
+    let price = type === "product" 
+      ? (item.price || item.selling_price || 0) 
+      : (item.price || item.base_price || 0);
     let selectedTier = "default";
     let defaultQuantity = 1;
     
@@ -544,13 +547,13 @@ const Sales = () => {
       newPrice = item.pricingTiers.individual;
     } else if (tier === "default") {
       const product = products?.find((p) => p.id === item.productId);
-      if (product) newPrice = product.selling_price;
+      if (product) newPrice = product.price || product.selling_price || 0;
     }
     
     setCart(cart.map((i) => (i.id === id ? { ...i, price: newPrice, selectedTier: tier, subtotal: newPrice * i.quantity } : i)));
   };
 
-  const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const subtotal = cart.reduce((sum, item) => sum + (item.subtotal || item.price * item.quantity), 0);
   const total = subtotal; // Total equals subtotal (no taxes/discounts)
 
   const completeSaleMutation = useMutation({
@@ -679,7 +682,7 @@ const Sales = () => {
           item_name: item.variantName ? `${item.name} - ${item.variantName}` : item.name,
           quantity: item.quantity,
           unit_price: item.price,
-          subtotal: item.subtotal,
+          subtotal: item.subtotal || item.price * item.quantity,
           customer_type: item.customerType || null,
           scent_mixture: item.scentMixture || null,
           bottle_cost: item.bottleCost || null,
@@ -878,7 +881,7 @@ const Sales = () => {
                             <p className="text-sm text-muted-foreground">{service.description}</p>
                           </div>
                           <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
-                            <span className="font-bold">UGX {Number(service.base_price).toLocaleString()}</span>
+                            <span className="font-bold">UGX {Number(service.price || service.base_price || 0).toLocaleString()}</span>
                             <Button size="sm" onClick={() => addToCart(service, "service")}>
                               <Plus className="w-4 h-4" />
                             </Button>
