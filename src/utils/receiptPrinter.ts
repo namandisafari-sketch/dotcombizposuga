@@ -51,42 +51,39 @@ export const generateReceiptHTML = (data: ReceiptData): string => {
           max-width: 300px;
           margin: 0 auto;
           line-height: 1.4;
-          background: linear-gradient(to bottom, #fafafa 0%, #ffffff 100%);
+          background: #ffffff;
         }
         .header { 
           text-align: center; 
-          border-bottom: 2px solid #333; 
           padding-bottom: 10px; 
           margin-bottom: 10px;
-          background: linear-gradient(135deg, #f5f5f5 0%, #ffffff 100%);
-          padding: 12px;
-          border-radius: 8px 8px 0 0;
         }
         .logo {
-          width: 80px;
-          height: 80px;
+          width: 60px;
+          height: 60px;
           margin: 0 auto 8px;
-          border-radius: 50%;
-          border: 2px solid #333;
-          object-fit: cover;
+          border-radius: 8px;
+          border: 1px solid #ddd;
+          object-fit: contain;
         }
         .business-name { 
           font-weight: bold; 
-          font-size: 15px; 
-          letter-spacing: 1px;
+          font-size: 14px; 
+          letter-spacing: 0.5px;
           margin-bottom: 5px;
           text-transform: uppercase;
-          color: #222;
+          color: #000;
         }
         .info-line { 
           margin: 2px 0; 
           font-size: 10px;
-          color: #444;
+          color: #333;
         }
         .receipt-info { 
+          border-top: 1px solid #000;
           border-bottom: 1px solid #000; 
-          padding: 5px 0; 
-          margin-bottom: 5px;
+          padding: 6px 0; 
+          margin-bottom: 8px;
           font-size: 10px;
         }
         .separator { 
@@ -97,82 +94,115 @@ export const generateReceiptHTML = (data: ReceiptData): string => {
           border-top: 2px solid #000;
           margin: 8px 0;
         }
-        .items-header {
-          display: flex;
-          justify-content: space-between;
-          font-weight: bold;
-          padding: 3px 0;
+        .items-table {
+          width: 100%;
+          border-collapse: collapse;
+          font-size: 10px;
+        }
+        .items-table th {
+          text-align: left;
+          padding: 4px 2px;
           border-bottom: 1px solid #000;
-          font-size: 10px;
+          font-weight: bold;
         }
-        .item-row { 
-          display: flex; 
-          justify-content: space-between; 
-          margin: 3px 0;
-          font-size: 10px;
-        }
-        .item-name { 
-          flex: 2;
-          margin-right: 5px;
-        }
-        .item-qty { 
-          flex: 0 0 30px;
-          text-align: center;
-        }
-        .item-unit {
-          flex: 0 0 50px;
+        .items-table th:nth-child(2),
+        .items-table th:nth-child(3),
+        .items-table th:nth-child(4) {
           text-align: right;
         }
-        .item-total {
-          flex: 0 0 60px;
+        .items-table td {
+          padding: 4px 2px;
+          vertical-align: top;
+        }
+        .items-table td:nth-child(2),
+        .items-table td:nth-child(3),
+        .items-table td:nth-child(4) {
           text-align: right;
+        }
+        .scent-row {
+          font-size: 9px;
+          color: #555;
+        }
+        .scent-row td {
+          padding: 2px 2px 4px 10px !important;
+          border-left: 2px solid #ccc;
+        }
+        .scent-label {
+          font-weight: bold;
+          font-size: 9px;
+          color: #444;
+        }
+        .scent-item {
+          font-size: 9px;
+          color: #555;
+          padding-left: 5px;
         }
         .totals { 
           border-top: 1px solid #000;
-          border-bottom: 2px solid #000;
-          padding: 5px 0; 
-          margin: 5px 0;
+          padding: 6px 0; 
+          margin: 8px 0;
         }
         .total-row { 
           display: flex; 
           justify-content: space-between; 
-          margin: 2px 0;
+          margin: 3px 0;
           font-size: 11px;
         }
         .total-row.grand { 
           font-weight: bold; 
-          font-size: 13px; 
+          font-size: 12px; 
           margin-top: 5px;
-          padding-top: 3px;
+          padding-top: 5px;
           border-top: 1px dashed #000;
         }
-        .payment-mode {
+        .payment-section {
           text-align: center;
-          margin: 5px 0;
+          border-top: 1px dashed #000;
+          padding-top: 8px;
           font-size: 11px;
         }
-        .customer-info {
-          text-align: center;
-          border-top: 1px dashed #000;
-          padding-top: 5px;
-          margin-top: 5px;
-          font-size: 10px;
+        .payment-line {
+          margin: 4px 0;
         }
         .footer { 
           text-align: center; 
           font-size: 10px;
-          margin-top: 8px;
-          line-height: 1.6;
+          margin-top: 10px;
+          padding-top: 8px;
+          border-top: 1px dashed #000;
         }
         .footer-thank {
           font-weight: bold;
-          margin-bottom: 3px;
+          margin-bottom: 5px;
+        }
+        .qr-section {
+          margin: 12px 0;
+          text-align: center;
+        }
+        .qr-label {
+          font-weight: bold;
+          font-size: 10px;
+          margin-bottom: 8px;
+        }
+        .qr-code {
+          width: 100px;
+          height: 100px;
+          margin: 0 auto;
+          display: block;
+          border: 2px solid #333;
+          border-radius: 6px;
+          padding: 4px;
+          background: white;
+        }
+        .contact-info {
+          font-size: 9px;
+          margin-top: 8px;
         }
       </style>
     </head>
     <body>
       <div class="header">
-        ${data.businessInfo.logo ? `<img src="${data.businessInfo.logo}" alt="Logo" class="logo" />` : ''}
+        ${data.businessInfo.logo ? `<img src="${data.businessInfo.logo}" alt="Logo" class="logo" />` : '<div style="font-size: 10px; color: #888; border: 1px solid #ddd; border-radius: 8px; padding: 8px; margin-bottom: 8px;">Logo</div>'}
         <div class="business-name">${data.businessInfo.name}</div>
         <div class="info-line">📍 ${data.businessInfo.address}</div>
         <div class="info-line">☎ ${data.businessInfo.phone}</div>
@@ -182,42 +212,38 @@ export const generateReceiptHTML = (data: ReceiptData): string => {
       <div class="receipt-info">
         <div>🧾 Receipt #: ${data.receiptNumber}</div>
         <div>🕓 Date: ${data.date} | Cashier: ${data.cashierName || 'Staff'}</div>
-        ${data.departmentName ? `<div>📍 Department: ${data.departmentName}</div>` : ''}
       </div>
 
-      <div class="double-separator"></div>
-
-      <div class="items-header">
-        <span style="flex: 2;">Item/Service</span>
-        <span style="flex: 0 0 30px; text-align: center;">Qty</span>
-        <span style="flex: 0 0 50px; text-align: right;">Unit</span>
-        <span style="flex: 0 0 60px; text-align: right;">Total</span>
-      </div>
-      
-      ${data.items.map(item => `
-        <div class="item-row">
-          <span class="item-name">${item.name}${item.variantName ? ` (${item.variantName})` : ''}</span>
-          <span class="item-qty">${item.quantity}</span>
-          <span class="item-unit">${item.isPerfumeRefill && item.packingCost ? `${item.packingCost.toLocaleString()}` : item.price.toLocaleString()}</span>
-          <span class="item-total">${item.subtotal.toLocaleString()}</span>
-        </div>
-        ${item.scentMixture ? `
-        <div style="font-size: 9px; color: #666; margin-top: 2px; padding-left: 10px; border-left: 2px solid #ddd; margin-left: 5px; padding-top: 2px; padding-bottom: 2px;">
-          <div style="font-weight: bold; margin-bottom: 2px;">Scents Mixed:</div>
-          ${item.scentMixture.split(' + ').map(scent => `
-            <div style="padding-left: 5px;">• ${scent}</div>
+      <table class="items-table">
+        <thead>
+          <tr>
+            <th style="width: 45%;">Products/Scent</th>
+            <th style="width: 15%;">ml/qty</th>
+            <th style="width: 18%;">Unit</th>
+            <th style="width: 22%;">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${data.items.map(item => `
+            <tr>
+              <td>${item.name}${item.variantName ? ` (${item.variantName})` : ''}</td>
+              <td>${item.quantity}</td>
+              <td>${item.price.toLocaleString()}</td>
+              <td>${item.subtotal.toLocaleString()}</td>
+            </tr>
+            ${item.scentMixture ? `
+              <tr class="scent-row">
+                <td colspan="4">
+                  <div class="scent-label">Scents Mixed:</div>
+                  ${item.scentMixture.split(' + ').map(scent => `
+                    <div class="scent-item">+ ${scent.trim()}</div>
+                  `).join('')}
+                </td>
+              </tr>
+            ` : ''}
           `).join('')}
-        </div>
-        ` : ''}
-        ${item.isPerfumeRefill && item.packingCost ? `
-        <div class="item-row" style="font-size: 9px; color: #666; margin-top: -2px;">
-          <span class="item-name" style="padding-left: 10px;">└ Packing Material</span>
-          <span class="item-qty"></span>
-          <span class="item-unit">${item.packingCost.toLocaleString()}</span>
-          <span class="item-total"></span>
-        </div>
-        ` : ''}
-      `).join('')}
+        </tbody>
+      </table>
 
       <div class="double-separator"></div>
       
@@ -236,37 +262,26 @@ export const generateReceiptHTML = (data: ReceiptData): string => {
         </div>
       </div>
 
-      <div class="payment-mode">
-        Payment Mode: ${(data.paymentMethod || 'N/A').toUpperCase()}
+      <div class="payment-section">
+        <div class="payment-line">Payment Mode: <strong>${(data.paymentMethod || 'N/A').toUpperCase()}</strong></div>
+        ${data.cashierName ? `<div class="payment-line">Served by: <strong>${data.cashierName}</strong></div>` : ''}
+        <div class="payment-line">Customer: <strong>${data.customerName || 'Walk-in'}</strong></div>
       </div>
-      
-      ${data.cashierName ? `
-        <div style="margin: 5px 0; font-size: 10px; text-align: center;">
-          Served by: <strong>${data.cashierName}</strong>
-        </div>
-      ` : ''}
-
-      ${data.customerName ? `
-        <div class="customer-info">
-          Customer: ${data.customerName}${data.customerPhone ? ' | ' + data.customerPhone : ''}
-        </div>
-      ` : ''}
-
-      <div class="separator"></div>
       
       <div class="footer">
         <div class="footer-thank">THANK YOU! Visit again.</div>
         ${data.seasonalRemark ? `<div style="margin: 5px 0; font-weight: bold;">🎉 ${data.seasonalRemark} 🎉</div>` : ''}
         ${data.qrCodeUrl ? `
-          <div style="margin: 15px 0; text-align: center; page-break-inside: avoid;">
-            <div style="margin-bottom: 8px; font-weight: bold; font-size: 10px;">Scan to connect:</div>
-            <img src="${data.qrCodeUrl}" alt="QR Code" style="width: 100px; height: 100px; margin: 0 auto; display: block; border: 2px solid #333; border-radius: 6px; padding: 4px; background: white; print-color-adjust: exact; -webkit-print-color-adjust: exact;" />
-            ${data.businessInfo.whatsapp ? `<div style="margin-top: 8px; font-size: 9px; font-weight: 600;">WhatsApp: ${data.businessInfo.whatsapp}</div>` : ''}
-            ${data.businessInfo.website ? `<div style="font-size: 9px; margin-top: 2px;">${data.businessInfo.website}</div>` : ''}
+          <div class="qr-section">
+            <div class="qr-label">Scan to connect:</div>
+            <img src="${data.qrCodeUrl}" alt="QR Code" class="qr-code" />
+            <div class="contact-info">
+              ${data.businessInfo.whatsapp ? `<div>WhatsApp: ${data.businessInfo.whatsapp}</div>` : ''}
+              ${data.businessInfo.website ? `<div>${data.businessInfo.website}</div>` : ''}
+            </div>
           </div>
         ` : `
-          <div>Scan to WhatsApp us: 📲</div>
-          ${data.businessInfo.whatsapp ? `<div>${data.businessInfo.whatsapp}</div>` : ''}
+          ${data.businessInfo.whatsapp ? `<div style="margin-top: 5px;">WhatsApp: ${data.businessInfo.whatsapp}</div>` : ''}
         `}
       </div>
     </body>
