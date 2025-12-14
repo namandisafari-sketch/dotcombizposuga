@@ -1,4 +1,5 @@
-const LOCAL_API_URL = 'http://localhost:3001';
+// Use environment variable for production, fallback to localhost for development
+const LOCAL_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 class LocalApiClient {
   private baseUrl: string;
