@@ -376,7 +376,7 @@ export const ProductFormDialog = ({
             {!isContainer && (
               <>
                 <div className="space-y-2">
-                  <Label>Cost Price *</Label>
+                  <Label>Cost Price (UGX) *</Label>
                   <Input
                     type="number"
                     value={formData.cost_price}
@@ -386,12 +386,29 @@ export const ProductFormDialog = ({
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Selling Price *</Label>
+                  <Label>Retail Price (UGX) *</Label>
                   <Input
                     type="number"
-                    value={formData.selling_price}
-                    onChange={e => setFormData({ ...formData, selling_price: parseFloat(e.target.value) || 0 })}
-                    placeholder="e.g., 15000"
+                    value={formData.pricing_tiers?.retail || formData.selling_price || ""}
+                    onChange={e => setFormData({
+                      ...formData,
+                      selling_price: parseFloat(e.target.value) || 0,
+                      pricing_tiers: { ...formData.pricing_tiers, retail: parseFloat(e.target.value) || 0 }
+                    })}
+                    placeholder="Price for retail customers"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Wholesale Price (UGX) *</Label>
+                  <Input
+                    type="number"
+                    value={formData.pricing_tiers?.wholesale || ""}
+                    onChange={e => setFormData({
+                      ...formData,
+                      pricing_tiers: { ...formData.pricing_tiers, wholesale: parseFloat(e.target.value) || 0 }
+                    })}
+                    placeholder="Price for wholesale customers"
                   />
                 </div>
               </>
@@ -399,46 +416,17 @@ export const ProductFormDialog = ({
 
             {isAdmin && !isFormsCategory && !isContainer && (
               <>
-                <div className="space-y-2 lg:col-span-3">
-                  <Label>Pricing Tiers (Optional)</Label>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <Label className="text-sm">Retail Price</Label>
-                      <Input
-                        type="number"
-                        value={formData.pricing_tiers?.retail || ""}
-                        onChange={e => setFormData({
-                          ...formData,
-                          pricing_tiers: { ...formData.pricing_tiers, retail: parseFloat(e.target.value) || 0 }
-                        })}
-                        placeholder="For retail customers"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-sm">Wholesale Price</Label>
-                      <Input
-                        type="number"
-                        value={formData.pricing_tiers?.wholesale || ""}
-                        onChange={e => setFormData({
-                          ...formData,
-                          pricing_tiers: { ...formData.pricing_tiers, wholesale: parseFloat(e.target.value) || 0 }
-                        })}
-                        placeholder="For wholesale customers"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-sm">Individual Price</Label>
-                      <Input
-                        type="number"
-                        value={formData.pricing_tiers?.individual || ""}
-                        onChange={e => setFormData({
-                          ...formData,
-                          pricing_tiers: { ...formData.pricing_tiers, individual: parseFloat(e.target.value) || 0 }
-                        })}
-                        placeholder="For individual sales"
-                      />
-                    </div>
-                  </div>
+                <div className="space-y-2">
+                  <Label>Individual Price (UGX)</Label>
+                  <Input
+                    type="number"
+                    value={formData.pricing_tiers?.individual || ""}
+                    onChange={e => setFormData({
+                      ...formData,
+                      pricing_tiers: { ...formData.pricing_tiers, individual: parseFloat(e.target.value) || 0 }
+                    })}
+                    placeholder="For individual sales (optional)"
+                  />
                 </div>
 
                 <div className="space-y-2 lg:col-span-3">
