@@ -567,21 +567,32 @@ const PerfumePOS = () => {
         throw new Error("Failed to get master perfume product: " + masterError.message);
       }
 
-      const saleItemsData = cart.map((item) => ({
-        sale_id: insertedSale.id,
-        product_id: item.scentMixture ? masterPerfumeId : (item.productId || null),
-        service_id: null,
-        item_name: item.name,
-        name: item.name,
-        quantity: item.type === "perfume" && item.totalMl ? item.totalMl : item.quantity,
-        unit_price: item.price,
-        total: item.subtotal,
-        customer_type: item.customerType || null,
-        scent_mixture: item.scentMixture || null,
-        bottle_cost: item.bottleCost || null,
-        ml_amount: item.totalMl || null,
-        price_per_ml: item.pricePerMl || null,
-      }));
+      const saleItemsData = cart.map((item) => {
+        // Extract ML from name if totalMl is not set (e.g., "SCENT NAME (10ml)" -> 10)
+        let mlAmount = (item as any).totalMl || (item as any).bottleSize || null;
+        if (!mlAmount && item.name) {
+          const mlMatch = item.name.match(/\((\d+)ml\)/);
+          if (mlMatch) {
+            mlAmount = parseInt(mlMatch[1]);
+          }
+        }
+        
+        return {
+          sale_id: insertedSale.id,
+          product_id: item.scentMixture ? masterPerfumeId : (item.productId || null),
+          service_id: null,
+          item_name: item.name,
+          name: item.name,
+          quantity: item.type === "perfume" && mlAmount ? mlAmount : item.quantity,
+          unit_price: item.price,
+          total: item.subtotal,
+          customer_type: item.customerType || null,
+          scent_mixture: item.scentMixture || null,
+          bottle_cost: item.scentMixture ? (item.bottleCost || null) : null,
+          ml_amount: item.scentMixture ? mlAmount : null,
+          price_per_ml: item.pricePerMl || null,
+        };
+      });
 
       const { error: itemsError } = await supabase
         .from("sale_items")

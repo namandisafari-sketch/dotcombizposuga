@@ -62,16 +62,31 @@ const PerfumeDepartmentReport = () => {
       if (deptId) usageQuery = usageQuery.eq("department_id", deptId);
       const { data: internalUsage } = await usageQuery;
 
+      // Helper function to extract ML from item name if ml_amount is not set
+      const extractMlFromItem = (item: any): number => {
+        if (item.ml_amount) return Number(item.ml_amount);
+        // Fallback: extract from name like "SCENT NAME (10ml)"
+        const match = item.name?.match(/\((\d+)ml\)/);
+        return match ? parseInt(match[1]) : 0;
+      };
+
       const retailSales = (sales || []).filter((s: any) => s.sale_items?.some((i: any) => i.customer_type === "retail"));
       const wholesaleSales = (sales || []).filter((s: any) => s.sale_items?.some((i: any) => i.customer_type === "wholesale"));
 
-      const retailMl = retailSales.reduce((sum: number, s: any) => sum + (s.sale_items?.reduce((iSum: number, i: any) => iSum + Number(i.ml_amount || 0), 0) || 0), 0);
-      const wholesaleMl = wholesaleSales.reduce((sum: number, s: any) => sum + (s.sale_items?.reduce((iSum: number, i: any) => iSum + Number(i.ml_amount || 0), 0) || 0), 0);
+      const retailMl = retailSales.reduce((sum: number, s: any) => sum + (s.sale_items?.reduce((iSum: number, i: any) => iSum + extractMlFromItem(i), 0) || 0), 0);
+      const wholesaleMl = wholesaleSales.reduce((sum: number, s: any) => sum + (s.sale_items?.reduce((iSum: number, i: any) => iSum + extractMlFromItem(i), 0) || 0), 0);
       const retailRevenue = retailSales.reduce((sum: number, s: any) => sum + Number(s.total || 0), 0);
       const wholesaleRevenue = wholesaleSales.reduce((sum: number, s: any) => sum + Number(s.total || 0), 0);
       const totalMl = retailMl + wholesaleMl;
       const totalRevenue = retailRevenue + wholesaleRevenue;
-      const bottleCosts = (sales || []).reduce((sum: number, s: any) => sum + (s.sale_items?.reduce((iSum: number, i: any) => iSum + Number(i.bottle_cost || 0), 0) || 0), 0);
+      // Bottle costs: only count actual bottle_cost values (not ml cost)
+      const bottleCosts = (sales || []).reduce((sum: number, s: any) => sum + (s.sale_items?.reduce((iSum: number, i: any) => {
+        // Only count bottle_cost if it's a perfume item (has scent_mixture)
+        if (i.scent_mixture && i.bottle_cost) {
+          return iSum + Number(i.bottle_cost);
+        }
+        return iSum;
+      }, 0) || 0), 0);
 
       // Calculate top scents
       const scentMap: Record<string, { ml: number; revenue: number }> = {};
@@ -79,7 +94,7 @@ const PerfumeDepartmentReport = () => {
         s.sale_items?.forEach((i: any) => {
           if (i.scent_mixture) {
             if (!scentMap[i.scent_mixture]) scentMap[i.scent_mixture] = { ml: 0, revenue: 0 };
-            scentMap[i.scent_mixture].ml += Number(i.ml_amount || 0);
+            scentMap[i.scent_mixture].ml += extractMlFromItem(i);
             scentMap[i.scent_mixture].revenue += Number(i.total || 0);
           }
         });
