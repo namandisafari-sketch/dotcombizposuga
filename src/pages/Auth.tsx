@@ -12,14 +12,7 @@ import { emailSchema, passwordSchema } from "@/lib/validation";
 import { RefreshCw } from "lucide-react";
 import logo from "@/assets/logo.png";
 import jagonixBg from "@/assets/jagonix-bg.png";
-
-// Check if we're on self-hosted domain
-const isSelfHosted = () => {
-  const hostname = window.location.hostname;
-  return hostname === 'dotcombrothersltd.com' || 
-         hostname === 'www.dotcombrothersltd.com' ||
-         hostname === '172.234.31.22';
-};
+import { supabaseClient, isSelfHosted } from "@/lib/supabase";
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -30,24 +23,15 @@ const Auth = () => {
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   
-  // For self-hosted, check localStorage token instead of Supabase session
+  // Immediate redirect if already logged in
   useEffect(() => {
-    if (isSelfHosted()) {
-      const token = localStorage.getItem('auth_token');
-      if (token) {
-        navigate("/dashboard", { replace: true });
-      }
+    if (session && !authLoading) {
+      navigate("/dashboard", { replace: true });
     }
-  }, [navigate]);
-  
-  // Immediate redirect if already logged in (for Supabase mode)
-  if (!isSelfHosted() && session && !authLoading) {
-    navigate("/dashboard", { replace: true });
-    return null;
-  }
+  }, [session, authLoading, navigate]);
 
-  // Show nothing while checking auth to prevent flash
-  if (!isSelfHosted() && authLoading) {
+  // Show loading while checking auth
+  if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#062e18]">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
@@ -55,51 +39,10 @@ const Auth = () => {
     );
   }
 
-  // Self-hosted login using local backend API
-  const handleSelfHostedAuth = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email || !password) {
-      toast.error("Please fill in all fields");
-      return;
-    }
+  // Use the appropriate Supabase client (self-hosted or Lovable Cloud)
+  const authClient = supabaseClient;
 
-    try {
-      setIsLoading(true);
-      
-      const endpoint = isSignUp ? '/api/auth/register' : '/api/auth/login';
-      const body = isSignUp 
-        ? { email, password, full_name: fullName }
-        : { email, password };
-      
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-      });
-      
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.error || 'Authentication failed');
-      }
-      
-      // Store token and user data
-      localStorage.setItem('auth_token', data.token);
-      localStorage.setItem('auth_user', JSON.stringify(data.user));
-      
-      toast.success(isSignUp ? "Account created!" : "Welcome back!");
-      navigate("/dashboard");
-      
-    } catch (error: any) {
-      console.error('Auth error:', error);
-      toast.error(error.message || "Invalid email or password");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Supabase login (original implementation)
-  const handleSupabaseAuth = async (e: React.FormEvent) => {
+  const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
       toast.error("Please fill in all fields");
@@ -129,10 +72,13 @@ const Auth = () => {
           return;
         }
         
-        const { data, error } = await supabase.auth.signUp({
+        const { data, error } = await authClient.auth.signUp({
           email: emailValidation.data,
           password,
-          options: { data: { full_name: fullName } }
+          options: { 
+            data: { full_name: fullName },
+            emailRedirectTo: `${window.location.origin}/`
+          }
         });
         
         if (error) throw error;
@@ -141,7 +87,7 @@ const Auth = () => {
           navigate("/dashboard");
         }
       } else {
-        const { data, error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await authClient.auth.signInWithPassword({
           email: emailValidation.data,
           password
         });
@@ -149,14 +95,15 @@ const Auth = () => {
         if (error) throw error;
         
         if (data.user) {
-          const { data: profile } = await supabase
+          // Check if user is active
+          const { data: profile } = await authClient
             .from('profiles')
             .select('is_active')
             .eq('id', data.user.id)
             .maybeSingle();
           
           if (profile && !profile.is_active) {
-            await supabase.auth.signOut();
+            await authClient.auth.signOut();
             toast.error("Your account has been deactivated.");
             return;
           }
@@ -171,6 +118,8 @@ const Auth = () => {
         toast.error("Invalid email or password");
       } else if (error.message?.includes("User already registered")) {
         toast.error("Email already registered.");
+      } else if (error.message?.includes("fetch")) {
+        toast.error("Connection error. Please check your network.");
       } else {
         toast.error(error.message || "An unexpected error occurred");
       }
@@ -178,8 +127,6 @@ const Auth = () => {
       setIsLoading(false);
     }
   };
-
-  const handleEmailAuth = isSelfHosted() ? handleSelfHostedAuth : handleSupabaseAuth;
 
   return (
     <div 
@@ -211,6 +158,9 @@ const Auth = () => {
           <CardDescription className="text-slate-50">
             {isSignUp ? "Create your account to get started with Jagonix POS" : "Welcome back! Sign in to continue"}
           </CardDescription>
+          {isSelfHosted && (
+            <p className="text-xs text-green-400">🏠 Connected to self-hosted backend</p>
+          )}
         </CardHeader>
         <CardContent className="space-y-4">
           <form onSubmit={handleEmailAuth} className="space-y-4">
