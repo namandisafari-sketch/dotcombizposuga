@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sparkles, AlertCircle, Package, Plus, Edit, Trash2, Droplet } from "lucide-react";
+import { ImageUpload } from "@/components/ui/image-upload";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -98,6 +99,7 @@ export default function PerfumeInventory() {
     sku: "",
     unit: "pieces" as string,
     quantity_per_unit: 1,
+    image_url: null as string | null,
   });
 
   // Fetch perfume departments
@@ -371,6 +373,7 @@ export default function PerfumeInventory() {
             bottle_size_ml: productForm.bottle_size_ml,
             unit: productForm.unit,
             quantity_per_unit: productForm.quantity_per_unit,
+            image_url: productForm.image_url,
           })
           .eq("id", editingProduct.id);
         if (error) throw error;
@@ -392,6 +395,7 @@ export default function PerfumeInventory() {
             bottle_size_ml: productForm.bottle_size_ml,
             unit: productForm.unit,
             quantity_per_unit: productForm.quantity_per_unit,
+            image_url: productForm.image_url,
             department_id: selectedDepartmentId,
             tracking_type: "quantity" as const,
             is_active: true,
@@ -440,6 +444,7 @@ export default function PerfumeInventory() {
       sku: "",
       unit: "pieces",
       quantity_per_unit: 1,
+      image_url: null,
     });
     setEditingProduct(null);
   };
@@ -461,6 +466,7 @@ export default function PerfumeInventory() {
       sku: product.sku || "",
       unit: (product as any).unit || "pieces",
       quantity_per_unit: (product as any).quantity_per_unit || 1,
+      image_url: (product as any).image_url || null,
     });
     setProductDialogOpen(true);
   };
@@ -722,9 +728,21 @@ export default function PerfumeInventory() {
                   (product.stock || 0) <= (product.min_stock || 5) && "border-destructive/50"
                 )}>
                   <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1">
-                        <CardTitle className="text-lg">{product.name}</CardTitle>
+                    <div className="flex items-start gap-3">
+                      {/* Product Image */}
+                      {(product as any).image_url ? (
+                        <img
+                          src={(product as any).image_url}
+                          alt={product.name}
+                          className="w-16 h-16 object-cover rounded-lg border flex-shrink-0"
+                        />
+                      ) : (
+                        <div className="w-16 h-16 bg-muted rounded-lg flex items-center justify-center flex-shrink-0">
+                          <Package className="w-6 h-6 text-muted-foreground" />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <CardTitle className="text-lg truncate">{product.name}</CardTitle>
                         {product.bottle_size_ml && product.bottle_size_ml > 0 && (
                           <p className="text-sm text-muted-foreground mt-1">{product.bottle_size_ml} ml</p>
                         )}
@@ -995,6 +1013,15 @@ export default function PerfumeInventory() {
                     onChange={(e) => setProductForm({...productForm, min_stock: Number(e.target.value)})}
                   />
                 </div>
+                
+                {/* Image Upload */}
+                <ImageUpload
+                  value={productForm.image_url}
+                  onChange={(url) => setProductForm({...productForm, image_url: url})}
+                  folder="products"
+                  maxSizeKB={200}
+                  className="col-span-2"
+                />
               </div>
             </div>
             <DialogFooter>
