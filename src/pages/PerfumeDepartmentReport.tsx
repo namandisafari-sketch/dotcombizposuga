@@ -62,6 +62,12 @@ const PerfumeDepartmentReport = () => {
       if (deptId) usageQuery = usageQuery.eq("department_id", deptId);
       const { data: internalUsage } = await usageQuery;
 
+      // Fetch the perfume product to get cost_per_ml
+      let productQuery = supabase.from("products").select("cost_per_ml").eq("tracking_type", "ml");
+      if (deptId) productQuery = productQuery.eq("department_id", deptId);
+      const { data: perfumeProducts } = await productQuery;
+      const costPerMl = perfumeProducts?.[0]?.cost_per_ml || 0;
+
       // Helper function to extract ML from item name if ml_amount is not set
       const extractMlFromItem = (item: any): number => {
         if (item.ml_amount) return Number(item.ml_amount);
@@ -79,7 +85,8 @@ const PerfumeDepartmentReport = () => {
       const wholesaleRevenue = wholesaleSales.reduce((sum: number, s: any) => sum + Number(s.total || 0), 0);
       const totalMl = retailMl + wholesaleMl;
       const totalRevenue = retailRevenue + wholesaleRevenue;
-      // Bottle costs: only count actual bottle_cost values (not ml cost)
+
+      // Bottle costs: only count actual bottle_cost values (packaging cost)
       const bottleCosts = (sales || []).reduce((sum: number, s: any) => sum + (s.sale_items?.reduce((iSum: number, i: any) => {
         // Only count bottle_cost if it's a perfume item (has scent_mixture)
         if (i.scent_mixture && i.bottle_cost) {
@@ -87,6 +94,9 @@ const PerfumeDepartmentReport = () => {
         }
         return iSum;
       }, 0) || 0), 0);
+
+      // Calculate ML cost (raw material cost) - cost of the perfume oil used
+      const mlCost = totalMl * costPerMl;
 
       // Calculate top scents
       const scentMap: Record<string, { ml: number; revenue: number }> = {};
@@ -110,9 +120,11 @@ const PerfumeDepartmentReport = () => {
         internalUsage: internalUsage || [],
         totalMl,
         totalRevenue,
-        netRevenue: totalRevenue - bottleCosts,
+        mlCost,
+        costPerMl,
         bottleCosts,
         totalBottleCosts: bottleCosts,
+        netRevenue: totalRevenue - bottleCosts - mlCost,
         transactionCount: (sales || []).length,
         totalTransactions: (sales || []).length,
         retailTransactions: retailSales.length,
@@ -188,17 +200,24 @@ const PerfumeDepartmentReport = () => {
       color: "text-purple-500"
     },
     {
+      title: "ML Cost (Raw Material)",
+      value: `UGX ${(salesData?.mlCost || 0).toLocaleString()}`,
+      icon: Droplet,
+      description: `${salesData?.totalMl || 0}ml × UGX ${salesData?.costPerMl || 0}/ml`,
+      color: "text-red-500"
+    },
+    {
       title: "Bottle Costs (Packaging)",
       value: `UGX ${(salesData?.totalBottleCosts || 0).toLocaleString()}`,
       icon: Package,
-      description: `Cost of ${salesData?.totalTransactions || 0} bottles used`,
+      description: `Cost of ${salesData?.totalTransactions || 0} bottles`,
       color: "text-orange-500"
     },
     {
       title: "Net Revenue",
       value: `UGX ${(salesData?.netRevenue || 0).toLocaleString()}`,
       icon: TrendingUp,
-      description: "Gross Revenue - Bottle Costs",
+      description: "Gross - ML Cost - Bottle Cost",
       color: "text-emerald-500"
     }
   ];
@@ -240,7 +259,7 @@ const PerfumeDepartmentReport = () => {
         </div>
 
         {/* KPI Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
           {kpiCards.map((card, index) => (
             <Card key={index}>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
