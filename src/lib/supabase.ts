@@ -4,16 +4,16 @@ import type { Database } from '@/integrations/supabase/types';
 import { supabase as lovableCloudSupabase } from '@/integrations/supabase/client';
 
 // Self-hosted configuration from environment variables
-const SELF_HOSTED_URL = import.meta.env.VITE_SELF_HOSTED_SUPABASE_URL;
-const SELF_HOSTED_KEY = import.meta.env.VITE_SELF_HOSTED_SUPABASE_ANON_KEY;
+const SELF_HOSTED_URL = import.meta.env.VITE_SELF_HOSTED_SUPABASE_URL as string | undefined;
+const SELF_HOSTED_KEY = import.meta.env.VITE_SELF_HOSTED_SUPABASE_ANON_KEY as string | undefined;
 
 // Check if self-hosted is configured
-export const isSelfHosted = !!(SELF_HOSTED_URL && SELF_HOSTED_KEY);
+export const isSelfHosted: boolean = !!(SELF_HOSTED_URL && SELF_HOSTED_KEY);
 
 // Create the appropriate client
 let _supabaseClient: SupabaseClient<Database>;
 
-if (isSelfHosted) {
+if (isSelfHosted && SELF_HOSTED_URL && SELF_HOSTED_KEY) {
   console.log('🏠 Connecting to self-hosted Supabase at:', SELF_HOSTED_URL);
   _supabaseClient = createClient<Database>(SELF_HOSTED_URL, SELF_HOSTED_KEY, {
     auth: {
