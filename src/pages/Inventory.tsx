@@ -34,7 +34,7 @@ const Inventory = () => {
     cost_price: 0,
     selling_price: 0,
     is_bundle: false,
-    tracking_type: "unit",
+    tracking_type: "quantity",
     volume_unit: "",
     allow_custom_price: false,
     min_price: 0,
@@ -59,7 +59,7 @@ const Inventory = () => {
     if (isDialogOpen && !editingProduct) {
       setFormData(prev => ({
         ...prev,
-        tracking_type: "unit", // Always unit for regular inventory
+        tracking_type: "quantity", // Always quantity for regular inventory
       }));
     }
   }, [isDialogOpen, editingProduct]);
@@ -207,7 +207,7 @@ const Inventory = () => {
         cost_price: 0,
         selling_price: 0,
         is_bundle: false,
-        tracking_type: "unit",
+        tracking_type: "quantity",
         volume_unit: "",
         allow_custom_price: false,
         min_price: 0,
@@ -254,7 +254,7 @@ const Inventory = () => {
       cost_price: product.cost_price,
       selling_price: product.price || product.selling_price,
       is_bundle: product.is_bundle || false,
-      tracking_type: product.tracking_type || "unit",
+      tracking_type: product.tracking_type || "quantity",
       volume_unit: product.volume_unit || "",
       allow_custom_price: product.allow_custom_price || false,
       min_price: product.min_price || 0,
@@ -339,7 +339,7 @@ const Inventory = () => {
                   cost_price: 0,
                   selling_price: 0,
                   is_bundle: false,
-                  tracking_type: "unit",
+                  tracking_type: "quantity",
                   volume_unit: "",
                   allow_custom_price: false,
                   min_price: 0,
