@@ -242,8 +242,8 @@ export const generateReceiptHTML = (data: ReceiptData): string => {
             <tr>
               <td>${item.name}${item.variantName ? ` (${item.variantName})` : ''}</td>
               <td>${item.quantity}</td>
-              <td>${item.price.toLocaleString()}</td>
-              <td>${item.subtotal.toLocaleString()}</td>
+              <td>${(item.price || 0).toLocaleString()}</td>
+              <td>${(item.subtotal || 0).toLocaleString()}</td>
             </tr>
             ${item.scentMixture ? `
               <tr class="scent-row">
@@ -264,15 +264,15 @@ export const generateReceiptHTML = (data: ReceiptData): string => {
       <div class="totals">
         <div class="total-row">
           <span>Subtotal:</span>
-          <span>${data.subtotal.toLocaleString()} UGX</span>
+          <span>${(data.subtotal || 0).toLocaleString()} UGX</span>
         </div>
         <div class="total-row">
           <span>Discount:</span>
-          <span>${discount.toLocaleString()} UGX</span>
+          <span>${(discount || 0).toLocaleString()} UGX</span>
         </div>
         <div class="total-row grand">
           <span>TOTAL PAID:</span>
-          <span>${data.total.toLocaleString()} UGX</span>
+          <span>${(data.total || 0).toLocaleString()} UGX</span>
         </div>
       </div>
 
@@ -340,7 +340,7 @@ export const generateReceiptHTML = (data: ReceiptData): string => {
 export const printReceipt = async (receiptData: ReceiptData, previewOnly: boolean = false): Promise<boolean> => {
   return new Promise((resolve) => {
     const printWindow = window.open('', '_blank', 'width=350,height=700');
-    
+
     if (!printWindow) {
       console.error('Could not open print window');
       resolve(false);
@@ -380,10 +380,10 @@ export const printReceipt = async (receiptData: ReceiptData, previewOnly: boolea
           waitForImages(),
           new Promise(r => setTimeout(r, 3000)) // 3 second timeout for images
         ]);
-        
+
         // Additional delay for full content rendering
         await new Promise(r => setTimeout(r, 800));
-        
+
         printWindow.print();
         printWindow.onafterprint = () => {
           printWindow.close();
@@ -422,20 +422,20 @@ export const shareViaWhatsApp = async (receiptData: ReceiptData, phoneNumber?: s
   try {
     // Dynamically import html2pdf
     const html2pdf = (await import('html2pdf.js')).default;
-    
+
     // Generate the receipt HTML
     const html = generateReceiptHTML(receiptData);
-    
+
     // Create a temporary container
     const container = document.createElement('div');
     container.innerHTML = html;
     container.style.position = 'absolute';
     container.style.left = '-9999px';
     document.body.appendChild(container);
-    
+
     // Generate PDF
     const filename = `Receipt_${receiptData.receiptNumber}.pdf`;
-    
+
     await html2pdf()
       .from(container)
       .set({
@@ -446,17 +446,17 @@ export const shareViaWhatsApp = async (receiptData: ReceiptData, phoneNumber?: s
         jsPDF: { unit: 'mm', format: [80, 200], orientation: 'portrait' }
       })
       .save();
-    
+
     // Cleanup
     document.body.removeChild(container);
-    
+
     // Open WhatsApp with a message prompting to share the downloaded PDF
     const message = `Receipt #${receiptData.receiptNumber} from ${receiptData.businessInfo.name}. Please find the attached PDF receipt.`;
     const encodedMessage = encodeURIComponent(message);
-    const url = phoneNumber 
+    const url = phoneNumber
       ? `https://wa.me/${phoneNumber.replace(/[^0-9]/g, '')}?text=${encodedMessage}`
       : `https://wa.me/?text=${encodedMessage}`;
-    
+
     window.open(url, '_blank');
   } catch (error) {
     console.error('Error generating receipt PDF:', error);
@@ -516,7 +516,7 @@ export const autoPrintReceipt = async (saleId: string, supabase: any): Promise<v
         .select('name, phone')
         .eq('id', sale.customer_id)
         .single();
-      
+
       if (customer) {
         customerName = customer.name;
         customerPhone = customer.phone;
@@ -549,9 +549,9 @@ export const autoPrintReceipt = async (saleId: string, supabase: any): Promise<v
       tax: sale.tax || 0,
       total: sale.total,
       paymentMethod: sale.payment_method,
-      date: new Date(sale.created_at).toLocaleString('en-GB', { 
-        year: 'numeric', 
-        month: '2-digit', 
+      date: new Date(sale.created_at).toLocaleString('en-GB', {
+        year: 'numeric',
+        month: '2-digit',
         day: '2-digit',
         hour: '2-digit',
         minute: '2-digit'
@@ -579,9 +579,9 @@ export const autoPrintReceipt = async (saleId: string, supabase: any): Promise<v
       // Update sale as printed
       await supabase
         .from('sales')
-        .update({ 
-          printed: true, 
-          printed_at: new Date().toISOString() 
+        .update({
+          printed: true,
+          printed_at: new Date().toISOString()
         })
         .eq('id', saleId);
     }

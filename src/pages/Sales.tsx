@@ -408,7 +408,18 @@ const Sales = () => {
         .from("product_variants")
         .select("*")
         .eq("product_id", selectedProductForVariant.id);
-      return (variants || []).sort((a: any, b: any) => a.variant_name?.localeCompare(b.variant_name || '') || 0);
+
+      const mappedVariants = (variants || []).map((v: any) => {
+        const basePrice = selectedProductForVariant?.price || selectedProductForVariant?.selling_price || 0;
+        return {
+          ...v,
+          variant_name: v.variant_name || v.name || "",
+          current_stock: v.stock ?? v.current_stock ?? 0,
+          price_adjustment: v.price_adjustment ?? (v.price ? v.price - basePrice : 0),
+        };
+      });
+
+      return mappedVariants.sort((a: any, b: any) => a.variant_name?.localeCompare(b.variant_name || '') || 0);
     },
     enabled: !!selectedProductForVariant?.id,
   });
@@ -1342,17 +1353,17 @@ const Sales = () => {
                               <SelectContent>
                                 {item.pricingTiers.retail && (
                                   <SelectItem value="retail">
-                                    Retail - UGX {item.pricingTiers.retail.toLocaleString()}
+                                    Retail - UGX {(item.pricingTiers.retail || 0).toLocaleString()}
                                   </SelectItem>
                                 )}
                                 {item.pricingTiers.wholesale && (
                                   <SelectItem value="wholesale">
-                                    Wholesale - UGX {item.pricingTiers.wholesale.toLocaleString()}
+                                    Wholesale - UGX {(item.pricingTiers.wholesale || 0).toLocaleString()}
                                   </SelectItem>
                                 )}
                                 {item.pricingTiers.individual && (
                                   <SelectItem value="individual">
-                                    Individual - UGX {item.pricingTiers.individual.toLocaleString()}
+                                    Individual - UGX {(item.pricingTiers.individual || 0).toLocaleString()}
                                   </SelectItem>
                                 )}
                               </SelectContent>
@@ -1387,7 +1398,7 @@ const Sales = () => {
                         </div>
                         <div className="flex items-center justify-between">
                           <p className="text-sm font-bold">
-                            UGX {item.subtotal.toLocaleString()}
+                            UGX {(item.subtotal || 0).toLocaleString()}
                           </p>
                           {item.minPrice && item.maxPrice && (
                             <p className="text-xs text-muted-foreground">
@@ -1538,7 +1549,7 @@ const Sales = () => {
           open={showVariantSelector}
           onOpenChange={setShowVariantSelector}
           productName={selectedProductForVariant?.name || ""}
-          basePrice={selectedProductForVariant?.selling_price || 0}
+          basePrice={selectedProductForVariant?.price || selectedProductForVariant?.selling_price || 0}
           variants={productVariants as any[]}
           onSelectVariant={handleVariantSelect}
         />

@@ -5,11 +5,14 @@ import { PackageOpen } from "lucide-react";
 
 interface ProductVariant {
   id: string;
-  variant_name: string;
+  variant_name?: string;
+  name?: string;
   color: string | null;
   size: string | null;
-  current_stock: number;
-  price_adjustment: number;
+  current_stock?: number;
+  stock?: number;
+  price_adjustment?: number;
+  price?: number;
 }
 
 interface VariantSelectorDialogProps {
@@ -49,8 +52,15 @@ export function VariantSelectorDialog({
             </p>
           ) : (
             variants.map((variant) => {
-              const finalPrice = basePrice + (variant.price_adjustment || 0);
-              
+              const currentStock = variant.current_stock ?? variant.stock ?? 0;
+              const name = variant.variant_name || variant.name || "Unnamed Variant";
+
+              // If basePrice is 0, use variant.price if available
+              let finalPrice = basePrice + (variant.price_adjustment || 0);
+              if (basePrice === 0 && variant.price && variant.price > 0 && (variant.price_adjustment || 0) === 0) {
+                finalPrice = variant.price;
+              }
+
               return (
                 <Button
                   key={variant.id}
@@ -60,12 +70,12 @@ export function VariantSelectorDialog({
                     onSelectVariant(variant);
                     onOpenChange(false);
                   }}
-                  disabled={variant.current_stock <= 0}
+                  disabled={currentStock <= 0}
                 >
                   <div className="flex justify-between w-full items-start">
                     <div className="text-left">
                       <div className="font-semibold text-base">
-                        {variant.variant_name}
+                        {name}
                       </div>
                       <div className="flex gap-2 mt-1 flex-wrap">
                         {variant.color && (
@@ -92,15 +102,15 @@ export function VariantSelectorDialog({
                       )}
                     </div>
                   </div>
-                  
+
                   <div className="flex justify-between w-full items-center mt-1">
-                    <Badge 
-                      variant={variant.current_stock > 10 ? "default" : variant.current_stock > 0 ? "secondary" : "destructive"}
+                    <Badge
+                      variant={currentStock > 10 ? "default" : currentStock > 0 ? "secondary" : "destructive"}
                       className="text-xs"
                     >
-                      Stock: {variant.current_stock}
+                      Stock: {variant.current_stock ?? variant.stock ?? 0}
                     </Badge>
-                    {variant.current_stock <= 0 && (
+                    {currentStock <= 0 && (
                       <span className="text-xs text-destructive font-medium">
                         Out of stock
                       </span>

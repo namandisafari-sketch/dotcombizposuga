@@ -306,24 +306,24 @@ export const printReceiptThermal = async (data: {
   for (const item of data.items) {
     const name = item.name.length > 20 ? item.name.substring(0, 18) + ".." : item.name;
     const qty = item.quantity.toString().padStart(3);
-    const total = item.subtotal.toLocaleString().padStart(8);
+    const total = (item.subtotal || 0).toLocaleString().padStart(8);
     builder.text(`${name.padEnd(20)} ${qty} ${total}`).newLine();
   }
 
   builder
     .horizontalLine("-", lineWidth)
     // Totals
-    .twoColumns("Subtotal:", `${data.subtotal.toLocaleString()} UGX`, lineWidth);
+    .twoColumns("Subtotal:", `${(data.subtotal || 0).toLocaleString()} UGX`, lineWidth);
 
   if (data.discount && data.discount > 0) {
-    builder.twoColumns("Discount:", `-${data.discount.toLocaleString()} UGX`, lineWidth);
+    builder.twoColumns("Discount:", `-${(data.discount || 0).toLocaleString()} UGX`, lineWidth);
   }
 
   builder
     .horizontalLine("=", lineWidth)
     .bold(true)
     .textSize(1, 2)
-    .twoColumns("TOTAL:", `${data.total.toLocaleString()} UGX`, lineWidth)
+    .twoColumns("TOTAL:", `${(data.total || 0).toLocaleString()} UGX`, lineWidth)
     .textSize(1, 1)
     .bold(false)
     .horizontalLine("=", lineWidth)

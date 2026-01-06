@@ -68,7 +68,7 @@ const PerfumePOS = () => {
   const [showNoCustomerWarning, setShowNoCustomerWarning] = useState(false);
   const [showParkDialog, setShowParkDialog] = useState(false);
   const [parkReason, setParkReason] = useState("");
-  
+
   // Scanned product dialog state for wholesale/retail selection
   const [showScannedProductDialog, setShowScannedProductDialog] = useState(false);
   const [scannedProduct, setScannedProduct] = useState<any>(null);
@@ -108,7 +108,7 @@ const PerfumePOS = () => {
       toast.error("Cart is empty");
       return;
     }
-    
+
     const parkedCart = {
       id: `parked-${Date.now()}`,
       name: customerName || "Walk-in",
@@ -118,7 +118,7 @@ const PerfumePOS = () => {
       parkedAt: new Date(),
       reason: parkReason,
     };
-    
+
     setParkedCarts(prev => [...prev, parkedCart]);
     setCart([]);
     setCustomerName("Walk-in");
@@ -176,7 +176,7 @@ const PerfumePOS = () => {
         .eq("department_id", selectedDepartmentId)
         .eq("is_archived", false)
         .neq("name", "Oil Perfume"); // Exclude master stock - it's capital, not a product
-      
+
       if (error) throw error;
       return data || [];
     },
@@ -186,7 +186,7 @@ const PerfumePOS = () => {
   // Handle barcode scanning - show dialog for customer type selection
   const handleBarcodeSearch = async (scannedBarcode: string) => {
     if (!scannedBarcode || !selectedDepartmentId) return;
-    
+
     const { data: matchedProducts, error } = await supabase
       .from("products")
       .select("*")
@@ -194,34 +194,34 @@ const PerfumePOS = () => {
       .eq("is_archived", false)
       .neq("name", "Oil Perfume")
       .or(`barcode.eq.${scannedBarcode},internal_barcode.eq.${scannedBarcode}`);
-    
+
     if (error) {
       toast.error("Error searching for product");
       setBarcode("");
       return;
     }
-    
+
     if (!matchedProducts || matchedProducts.length === 0) {
       toast.error("No product found with this barcode");
       setBarcode("");
       return;
     }
-    
+
     if (matchedProducts.length > 1) {
       toast.info(`Found ${matchedProducts.length} products. Please select one from the list.`);
       setBarcode("");
       return;
     }
-    
+
     const product = matchedProducts[0];
     const currentStock = product.current_stock || product.stock || product.total_ml || 0;
-    
+
     if (currentStock <= 0) {
       toast.error(`${product.name} is out of stock`);
       setBarcode("");
       return;
     }
-    
+
     // Show dialog for customer type and quantity selection
     setScannedProduct(product);
     setScannedCustomerType("retail");
@@ -234,11 +234,11 @@ const PerfumePOS = () => {
   // Add scanned product to cart with selected options
   const addScannedProductToCart = () => {
     if (!scannedProduct) return;
-    
+
     const retailPrice = scannedProduct.retail_price || scannedProduct.price;
     const wholesalePrice = scannedProduct.wholesale_price || retailPrice * 0.8;
     const pricePerMl = scannedProduct.wholesale_price_per_ml || (wholesalePrice / (scannedProduct.bottle_size_ml || 100));
-    
+
     if (scannedCustomerType === "wholesale" && scannedMlQuantity > 0) {
       // Wholesale by ML
       const totalPrice = scannedMlQuantity * pricePerMl;
@@ -272,7 +272,7 @@ const PerfumePOS = () => {
       });
       toast.success(`${scannedProduct.name} x${scannedUnitQuantity} (${scannedCustomerType}) added to cart`);
     }
-    
+
     setShowScannedProductDialog(false);
     setScannedProduct(null);
   };
@@ -326,13 +326,13 @@ const PerfumePOS = () => {
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return null;
-      
+
       const { data, error } = await supabase
         .from("profiles")
         .select("full_name")
         .eq("id", user.id)
         .single();
-      
+
       if (error) throw error;
       return data;
     },
@@ -370,14 +370,14 @@ const PerfumePOS = () => {
     onSuccess: (newCustomer) => {
       toast.success(`Customer "${newCustomer.name}" created successfully!`);
       queryClient.invalidateQueries({ queryKey: ["customers", selectedDepartmentId] });
-      
+
       // Auto-select the newly created customer
       setSelectedCustomer(newCustomer.id);
       setCustomerName(newCustomer.name);
       if (newCustomer.email) {
         setCustomerEmail(newCustomer.email);
       }
-      
+
       // Close dialog and reset form
       setShowNewCustomerDialog(false);
       setNewCustomerData({
@@ -406,8 +406,8 @@ const PerfumePOS = () => {
 
   const updateQuantity = (itemId: string, newQuantity: number) => {
     if (newQuantity < 1) return;
-    setCart(prev => prev.map(item => 
-      item.id === itemId 
+    setCart(prev => prev.map(item =>
+      item.id === itemId
         ? { ...item, quantity: newQuantity, subtotal: item.price * newQuantity }
         : item
     ));
@@ -433,7 +433,7 @@ const PerfumePOS = () => {
 
       // Use globalSettings for business info (department_settings doesn't have those fields)
       const settings = globalSettings;
-      
+
       let qrCodeUrl;
       if (settings?.whatsapp_number) {
         try {
@@ -448,11 +448,11 @@ const PerfumePOS = () => {
 
       // Generate proper sequential receipt/invoice number
       const { data: receiptNumber, error: receiptError } = await supabase.rpc('generate_receipt_number');
-      
+
       if (receiptError) {
         throw new Error("Failed to generate receipt number: " + receiptError.message);
       }
-      
+
       // Check if it's a wholesale sale (invoice)
       const hasWholesaleItems = cart.some(item => item.customerType === "wholesale");
       const invoiceNumber = hasWholesaleItems ? receiptNumber.replace('RCP', 'INV') : null;
@@ -522,12 +522,12 @@ const PerfumePOS = () => {
 
       if (isDemoMode) {
         showDemoWarning();
-        
+
         setCurrentReceiptData({
           ...mockSaleData.receiptData,
           isInvoice: hasWholesaleItems,
         });
-        
+
         setShowReceiptDialog(true);
         setCart([]);
         return mockSaleData;
@@ -561,7 +561,7 @@ const PerfumePOS = () => {
       // Get master perfume product ID for scent mixtures
       const { data: masterPerfumeId, error: masterError } = await supabase
         .rpc('get_or_create_master_perfume');
-      
+
       if (masterError) {
         console.error("Failed to get master perfume product:", masterError);
         throw new Error("Failed to get master perfume product: " + masterError.message);
@@ -576,7 +576,7 @@ const PerfumePOS = () => {
             mlAmount = parseInt(mlMatch[1]);
           }
         }
-        
+
         return {
           sale_id: insertedSale.id,
           product_id: item.scentMixture ? masterPerfumeId : (item.productId || null),
@@ -609,7 +609,7 @@ const PerfumePOS = () => {
           // Extract unique scents from cart items
           const newScents: string[] = [];
           const bottleSizes: string[] = [];
-          
+
           cart.forEach(item => {
             if (item.selectedScents && item.selectedScents.length > 0) {
               item.selectedScents.forEach(s => {
@@ -636,7 +636,7 @@ const PerfumePOS = () => {
 
             const existingScents = existingPrefs?.preferred_scents || [];
             const existingSizes = existingPrefs?.preferred_bottle_sizes || [];
-            
+
             // Merge with existing, keeping unique values
             const mergedScents = [...new Set([...existingScents, ...newScents])];
             const mergedSizes = [...new Set([...existingSizes, ...bottleSizes])];
@@ -673,7 +673,7 @@ const PerfumePOS = () => {
       // Update receipt data with actual receipt number
       mockSaleData.receiptData.receiptNumber = insertedSale.receipt_number;
       mockSaleData.receiptData.invoiceNumber = insertedSale.invoice_number;
-      
+
       // Send invoice email if wholesale and email is provided
       if (hasWholesaleItems && customerEmail) {
         try {
@@ -694,7 +694,7 @@ const PerfumePOS = () => {
             paymentTerms: "Payment due within 30 days",
             qrCodeUrl,
           };
-          
+
           const invoiceHTML = generateInvoiceHTML(invoiceData);
 
           const { data: { session } } = await supabase.auth.getSession();
@@ -743,7 +743,7 @@ const PerfumePOS = () => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
       queryClient.invalidateQueries({ queryKey: ["perfume-scents"] });
       queryClient.invalidateQueries({ queryKey: ["total-scent-stock"] });
-      
+
       toast.success("Sale completed successfully!");
       setShowReceiptDialog(true);
       setCart([]);
@@ -857,7 +857,7 @@ const PerfumePOS = () => {
                       const retailPrice = product.retail_price || product.price;
                       const wholesalePrice = product.wholesale_price || (product.retail_price ? product.retail_price * 0.8 : product.price * 0.8);
                       const currentStock = product.current_stock || product.stock || 0;
-                      
+
                       return (
                         <div key={product.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border">
                           <div className="flex-1">
@@ -965,7 +965,7 @@ const PerfumePOS = () => {
                           </div>
                           <div className="flex items-center gap-3">
                             <div className="text-right">
-                              <p className="font-bold">UGX {item.price.toLocaleString()}</p>
+                              <p className="font-bold">UGX {(item.price || 0).toLocaleString()}</p>
                               <p className="text-sm text-muted-foreground">
                                 Qty: {item.quantity}
                               </p>
@@ -982,7 +982,7 @@ const PerfumePOS = () => {
                       ))}
                     </div>
                   )}
-                  
+
                   {/* Park Cart Button */}
                   {cart.length > 0 && (
                     <div className="mt-4 pt-4 border-t">
@@ -1056,9 +1056,9 @@ const PerfumePOS = () => {
                           ))}
                         </SelectContent>
                       </Select>
-                      <Button 
+                      <Button
                         type="button"
-                        variant="outline" 
+                        variant="outline"
                         size="icon"
                         onClick={() => setShowNewCustomerDialog(true)}
                         title="Add New Customer"
@@ -1190,8 +1190,8 @@ const PerfumePOS = () => {
             </div>
           </div>
           <DialogFooter>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => {
                 setShowNewCustomerDialog(false);
                 setNewCustomerData({ name: "", phone: "", email: "", address: "" });
@@ -1199,7 +1199,7 @@ const PerfumePOS = () => {
             >
               Cancel
             </Button>
-            <Button 
+            <Button
               onClick={handleCreateCustomer}
               disabled={!newCustomerData.name.trim() || createCustomerMutation.isPending}
             >
@@ -1218,8 +1218,8 @@ const PerfumePOS = () => {
               No Customer Selected
             </AlertDialogTitle>
             <AlertDialogDescription>
-              You haven't linked a customer to this sale. Without selecting a customer, 
-              their scent preferences won't be saved and you won't be able to look up 
+              You haven't linked a customer to this sale. Without selecting a customer,
+              their scent preferences won't be saved and you won't be able to look up
               their purchase history later.
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -1355,7 +1355,7 @@ const PerfumePOS = () => {
                       Stock: {scannedProduct.total_ml || scannedProduct.stock || 0} ml available
                     </p>
                   </div>
-                  
+
                   {/* Quick ML Presets */}
                   <div>
                     <Label className="text-xs text-muted-foreground">Quick Select</Label>
@@ -1374,7 +1374,7 @@ const PerfumePOS = () => {
                       ))}
                     </div>
                   </div>
-                  
+
                   <div>
                     <Label>Or Enter Custom ML</Label>
                     <Input
@@ -1386,7 +1386,7 @@ const PerfumePOS = () => {
                       className="mt-1 text-lg font-semibold"
                     />
                   </div>
-                  
+
                   {scannedMlQuantity > 0 && (
                     <div className="p-3 bg-primary/10 rounded-lg">
                       <p className="text-sm">
@@ -1405,7 +1405,7 @@ const PerfumePOS = () => {
             <Button variant="outline" onClick={() => setShowScannedProductDialog(false)}>
               Cancel
             </Button>
-            <Button 
+            <Button
               onClick={addScannedProductToCart}
               disabled={scannedCustomerType === "wholesale" && scannedMlQuantity <= 0}
             >

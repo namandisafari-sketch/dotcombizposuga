@@ -28,7 +28,7 @@ const Reports = () => {
   const getDateRange = () => {
     const now = new Date();
     const today = now.toISOString().split("T")[0];
-    
+
     if (dateFilter === "daily") {
       return {
         start: `${today}T00:00:00`,
@@ -61,9 +61,9 @@ const Reports = () => {
     queryKey: ["sales-report", dateFilter, selectedDepartmentId],
     queryFn: async () => {
       if (!selectedDepartmentId) return [];
-      
+
       const { start, end } = getDateRange();
-      
+
       const { data: sales } = await supabase
         .from("sales")
         .select("*")
@@ -71,9 +71,9 @@ const Reports = () => {
         .gte("created_at", start)
         .lte("created_at", end)
         .eq("status", "completed");
-      
+
       if (!sales) return [];
-      
+
       // Fetch sale items for each sale
       const salesWithItems = await Promise.all(
         sales.map(async (sale: any) => {
@@ -84,9 +84,9 @@ const Reports = () => {
           return { ...sale, sale_items: items || [] };
         })
       );
-      
+
       // Filter out mobile_money, card, bank payments
-      return salesWithItems.filter((sale: any) => 
+      return salesWithItems.filter((sale: any) =>
         !['mobile_money', 'card', 'bank'].includes(sale.payment_method)
       );
     },
@@ -113,7 +113,7 @@ const Reports = () => {
     queryKey: ["credits-report", dateFilter, selectedDepartmentId],
     queryFn: async () => {
       if (!selectedDepartmentId) return [];
-      
+
       let query = supabase.from("credits").select("*");
       if (!isAdmin) {
         query = query.or(`from_department_id.eq.${selectedDepartmentId},to_department_id.eq.${selectedDepartmentId}`);
@@ -131,7 +131,7 @@ const Reports = () => {
     queryKey: ["reconciliations-report", dateFilter, selectedDepartmentId],
     queryFn: async () => {
       if (!selectedDepartmentId) return [];
-      
+
       const { start, end } = getDateRange();
       const { data } = await supabase
         .from("reconciliations")
@@ -152,7 +152,7 @@ const Reports = () => {
     queryKey: ["expenses-report", dateFilter, selectedDepartmentId],
     queryFn: async () => {
       if (!selectedDepartmentId) return [];
-      
+
       const { start, end } = getDateRange();
       const { data } = await supabase
         .from("expenses")
@@ -172,7 +172,7 @@ const Reports = () => {
     queryKey: ["suspended-revenue-report", dateFilter, selectedDepartmentId],
     queryFn: async () => {
       if (!selectedDepartmentId) return [];
-      
+
       const { data } = await supabase
         .from("suspended_revenue")
         .select("*")
@@ -212,7 +212,7 @@ const Reports = () => {
 
       // Collect all sale items from all sales
       const allSaleItems = salesData.flatMap(sale => sale.sale_items || []);
-      
+
       if (allSaleItems.length === 0) {
         throw new Error("No sale items found");
       }
@@ -236,48 +236,48 @@ const Reports = () => {
   // Calculate metrics
   const totalSales = salesData?.reduce((sum, sale) => sum + Number(sale.total), 0) || 0;
   const totalTransactions = salesData?.length || 0;
-  
+
   // Calculate credits impact
   // Unsettled credits (approved but not settled yet)
-  const unsettledCreditsIn = credits?.filter((c: any) => 
+  const unsettledCreditsIn = credits?.filter((c: any) =>
     c.to_department_id === selectedDepartmentId && c.settlement_status !== 'settled'
   ).reduce((sum, c) => sum + Number(c.amount), 0) || 0;
-  
-  const unsettledCreditsOut = credits?.filter((c: any) => 
+
+  const unsettledCreditsOut = credits?.filter((c: any) =>
     c.from_department_id === selectedDepartmentId && c.settlement_status !== 'settled'
   ).reduce((sum, c) => sum + Number(c.amount), 0) || 0;
-  
+
   // Settled credits (impact on final revenue)
-  const settledCreditsIn = credits?.filter((c: any) => 
+  const settledCreditsIn = credits?.filter((c: any) =>
     c.to_department_id === selectedDepartmentId && c.settlement_status === 'settled'
   ).reduce((sum, c) => sum + Number(c.amount), 0) || 0;
-  
-  const settledCreditsOut = credits?.filter((c: any) => 
+
+  const settledCreditsOut = credits?.filter((c: any) =>
     c.from_department_id === selectedDepartmentId && c.settlement_status === 'settled'
   ).reduce((sum, c) => sum + Number(c.amount), 0) || 0;
-  
+
   // Calculate reconciliation differences (only approved ones)
   const reconciliationDifferences = reconciliations?.reduce((sum, r) => sum + Number(r.discrepancy), 0) || 0;
-  
+
   // Calculate total expenses
   const totalExpenses = expenses?.reduce((sum, e) => sum + Number(e.amount), 0) || 0;
-  
+
   // Calculate total suspended revenue (unapproved extra cash)
   const totalSuspendedRevenue = suspendedRevenue?.reduce((sum, s) => sum + Number(s.amount), 0) || 0;
-  
+
   // Calculate adjusted total sales
   // Formula: Sales + Unsettled Credits IN - Unsettled Credits OUT 
   //          - Settled Credits IN (refunded back) + Settled Credits OUT (received back)
   //          - Expenses + Reconciliation Adjustments - Suspended Revenue
-  const adjustedTotalSales = totalSales 
-    + unsettledCreditsIn 
-    - unsettledCreditsOut 
+  const adjustedTotalSales = totalSales
+    + unsettledCreditsIn
+    - unsettledCreditsOut
     - settledCreditsIn   // Deduction: paying back borrowed money
     + settledCreditsOut  // Addition: receiving back lent money
-    - totalExpenses 
+    - totalExpenses
     + reconciliationDifferences
     - totalSuspendedRevenue; // Subtract unapproved extra cash
-  
+
   // Calculate total items sold, COGS, COSO, and separate product/service metrics
   let totalItemsSold = 0;
   let totalProductsSold = 0;
@@ -286,12 +286,12 @@ const Reports = () => {
   let totalCOSO = 0;
   let totalServiceRevenue = 0;
   let totalProductRevenue = 0;
-  
+
   salesData?.forEach(sale => {
     sale.sale_items?.forEach((item: any) => {
       // Use actual quantity sold (not multiplied by quantity_per_unit)
       totalItemsSold += item.quantity;
-      
+
       // Separate products and services
       if (item.product_id) {
         totalProductsSold += item.quantity;
@@ -318,7 +318,7 @@ const Reports = () => {
   // Separate product and service stats
   const productStats: Record<string, { sold: number; revenue: number }> = {};
   const serviceStats: Record<string, { sold: number; revenue: number; coso: number }> = {};
-  
+
   salesData?.forEach(sale => {
     sale.sale_items?.forEach((item: any) => {
       if (item.product_id) {
@@ -342,7 +342,7 @@ const Reports = () => {
   const topProducts = Object.entries(productStats)
     .sort((a, b) => b[1].revenue - a[1].revenue)
     .slice(0, 5);
-  
+
   const topServices = Object.entries(serviceStats)
     .sort((a, b) => b[1].revenue - a[1].revenue)
     .slice(0, 5);
@@ -377,7 +377,7 @@ const Reports = () => {
     }
     return (p.current_stock || 0) <= (p.min_stock || 0);
   }).slice(0, 5) || [];
-  
+
   const isPerfumeDepartment = selectedDepartment?.is_perfume_department;
 
   // Staff performance
@@ -397,7 +397,7 @@ const Reports = () => {
   const exportToPDF = async () => {
     try {
       const html2pdf = (await import('html2pdf.js')).default;
-      
+
       // Create a detailed report content
       const reportContent = `
         <div style="padding: 20px; font-family: Arial, sans-serif; font-weight: bold;">
@@ -582,13 +582,13 @@ const Reports = () => {
     csv += `Total Cost,${totalCost}\n`;
     csv += `Gross Profit,${grossProfit}\n`;
     csv += `Avg Basket Size,${avgBasketSize}\n\n`;
-    
+
     csv += "TOP SELLING PRODUCTS\n";
     csv += "Product,Sold,Revenue\n";
     topProducts.forEach(([name, stats]) => {
       csv += `${name},${stats.sold},${stats.revenue}\n`;
     });
-    
+
     csv += "\nTOP SERVICES\n";
     csv += "Service,Offered,Revenue,COSO,Net Revenue\n";
     topServices.forEach(([name, stats]) => {
@@ -630,7 +630,7 @@ const Reports = () => {
                 <SelectItem value="monthly">Monthly</SelectItem>
               </SelectContent>
             </Select>
-            <Button 
+            <Button
               variant="outline"
               onClick={handleRefresh}
               disabled={isRefreshing}
@@ -658,11 +658,11 @@ const Reports = () => {
             </Button>
           </div>
         </div>
-        
+
         <Alert>
           <Info className="h-4 w-4" />
           <AlertDescription>
-            <strong>Report Explanation:</strong> Gross Sales = Total sales revenue for selected period (excluding mobile money/card/bank). 
+            <strong>Report Explanation:</strong> Gross Sales = Total sales revenue for selected period (excluding mobile money/card/bank).
             Adjusted Net Sales = Gross Sales + Credits IN - Credits OUT - Settled Credits IN + Settled Credits OUT - Expenses + Reconciliation Adjustments - Suspended Revenue.
             COGS = Cost of Goods Sold (products). COSO = Cost of Service Offered (services). Net Revenue = Revenue after deducting costs.
           </AlertDescription>
@@ -705,60 +705,60 @@ const Reports = () => {
               <div>
                 <p className="text-sm text-muted-foreground">Reconciliation</p>
                 <p className={`text-xl font-bold ${reconciliationDifferences >= 0 ? 'text-success' : 'text-destructive'}`}>
-                  {reconciliationDifferences >= 0 ? '+' : ''}{reconciliationDifferences.toLocaleString()} UGX
+                  {reconciliationDifferences >= 0 ? '+' : ''}{(reconciliationDifferences || 0).toLocaleString()} UGX
                 </p>
               </div>
               <div className="col-span-2 md:col-span-1">
                 <p className="text-sm text-muted-foreground">Adjusted Total Sales</p>
-                <p className="text-2xl font-bold text-primary">{adjustedTotalSales.toLocaleString()} UGX</p>
+                <p className="text-2xl font-bold text-primary">{(adjustedTotalSales || 0).toLocaleString()} UGX</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Transactions</p>
-                <p className="text-xl font-bold">{totalTransactions}</p>
+                <p className="text-xl font-bold">{(totalTransactions || 0)}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Items Sold</p>
-                <p className="text-xl font-bold">{totalItemsSold} units</p>
+                <p className="text-xl font-bold">{(totalItemsSold || 0)} units</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Products Sold</p>
-                <p className="text-xl font-bold">{totalProductsSold} units</p>
+                <p className="text-xl font-bold">{(totalProductsSold || 0)} units</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Services Offered</p>
-                <p className="text-xl font-bold">{totalServicesSold} times</p>
+                <p className="text-xl font-bold">{(totalServicesSold || 0)} times</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Service Revenue</p>
-                <p className="text-xl font-bold">{totalServiceRevenue.toLocaleString()} UGX</p>
+                <p className="text-xl font-bold">{(totalServiceRevenue || 0).toLocaleString()} UGX</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Net Service Revenue</p>
-                <p className="text-xl font-bold text-success">{netServiceRevenue.toLocaleString()} UGX</p>
+                <p className="text-xl font-bold text-success">{(netServiceRevenue || 0).toLocaleString()} UGX</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">COGS</p>
-                <p className="text-xl font-bold">{totalCOGS.toLocaleString()} UGX</p>
+                <p className="text-xl font-bold">{(totalCOGS || 0).toLocaleString()} UGX</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">COSO</p>
-                <p className="text-xl font-bold">{totalCOSO.toLocaleString()} UGX</p>
+                <p className="text-xl font-bold">{(totalCOSO || 0).toLocaleString()} UGX</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Total Cost</p>
-                <p className="text-xl font-bold text-destructive">{totalCost.toLocaleString()} UGX</p>
+                <p className="text-xl font-bold text-destructive">{(totalCost || 0).toLocaleString()} UGX</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Gross Profit</p>
-                <p className="text-xl font-bold text-success">{grossProfit.toLocaleString()} UGX</p>
+                <p className="text-xl font-bold text-success">{(grossProfit || 0).toLocaleString()} UGX</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Adjusted Profit</p>
-                <p className="text-xl font-bold text-success">{adjustedGrossProfit.toLocaleString()} UGX</p>
+                <p className="text-xl font-bold text-success">{(adjustedGrossProfit || 0).toLocaleString()} UGX</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Avg. Basket</p>
-                <p className="text-xl font-bold">{avgBasketSize.toLocaleString()} UGX</p>
+                <p className="text-xl font-bold">{(avgBasketSize || 0).toLocaleString()} UGX</p>
               </div>
             </div>
           </CardContent>
@@ -904,12 +904,12 @@ const Reports = () => {
                       <TableCell className="font-medium">{product.name}</TableCell>
                       <TableCell className="text-right">
                         <Badge variant={
-                          (product.tracking_type === 'ml' ? (product.total_ml || 0) : (product.current_stock || 0)) === 0 
-                            ? "destructive" 
+                          (product.tracking_type === 'ml' ? (product.total_ml || 0) : (product.current_stock || 0)) === 0
+                            ? "destructive"
                             : "secondary"
                         }>
-                          {product.tracking_type === 'ml' 
-                            ? `${product.total_ml || 0} ml` 
+                          {product.tracking_type === 'ml'
+                            ? `${product.total_ml || 0} ml`
                             : `${product.current_stock || 0} ${product.unit}`}
                         </Badge>
                       </TableCell>
@@ -977,7 +977,7 @@ const Reports = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Restore Stock from Sales</AlertDialogTitle>
             <AlertDialogDescription>
-              This will restore all sold items from the current report period back to stock. 
+              This will restore all sold items from the current report period back to stock.
               {salesData && (
                 <div className="mt-2 font-semibold">
                   Total items to restore: {salesData.flatMap(s => s.sale_items || []).length} items from {salesData.length} sales
@@ -990,7 +990,7 @@ const Reports = () => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogAction
               onClick={() => restoreStockMutation.mutate()}
               disabled={restoreStockMutation.isPending}
             >

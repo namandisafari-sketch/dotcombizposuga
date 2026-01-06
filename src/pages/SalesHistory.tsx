@@ -507,11 +507,11 @@ const SalesHistory = () => {
                             </div>
                           )}
                           <div className="text-sm text-muted-foreground">
-                            {item.quantity} × UGX {item.unit_price?.toLocaleString()}
+                            {item.quantity} × UGX {(item.unit_price || 0).toLocaleString()}
                           </div>
                         </div>
                         <div className="font-medium">
-                          UGX {item.subtotal?.toLocaleString()}
+                          UGX {(item.subtotal || 0).toLocaleString()}
                         </div>
                       </div>
                     ))}

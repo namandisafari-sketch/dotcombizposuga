@@ -7,12 +7,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from "date-fns";
-import { 
-  DollarSign, 
-  TrendingUp, 
-  Droplet, 
-  Package, 
-  Users, 
+import {
+  DollarSign,
+  TrendingUp,
+  Droplet,
+  Package,
+  Users,
   AlertCircle,
   Sparkles,
   Archive
@@ -26,9 +26,9 @@ const PerfumeDepartmentReport = () => {
   const [selectedDate, setSelectedDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [selectedDepartmentId, setSelectedDepartmentId] = useState<string | null>(null);
   const { isAdmin, departmentId: userDepartmentId } = useUserRole();
-  
+
   const deptId = selectedDepartmentId || userDepartmentId;
-  
+
   // Enable realtime updates
   useSalesRealtime(deptId);
   useInventoryRealtime(deptId);
@@ -194,7 +194,7 @@ const PerfumeDepartmentReport = () => {
     },
     {
       title: "Total Transactions",
-      value: salesData?.totalTransactions || 0,
+      value: (salesData?.totalTransactions || 0),
       icon: Users,
       description: `${salesData?.retailTransactions || 0} retail, ${salesData?.wholesaleTransactions || 0} wholesale`,
       color: "text-purple-500"
@@ -238,9 +238,9 @@ const PerfumeDepartmentReport = () => {
           </div>
           {isAdmin && (
             <div className="min-w-[250px]">
-              <PerfumeDepartmentSelector 
-                value={selectedDepartmentId} 
-                onChange={setSelectedDepartmentId} 
+              <PerfumeDepartmentSelector
+                value={selectedDepartmentId}
+                onChange={setSelectedDepartmentId}
               />
             </div>
           )}
@@ -373,8 +373,8 @@ const PerfumeDepartmentReport = () => {
                           <span className="font-medium">{scent.name}</span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="text-sm text-muted-foreground">{scent.ml} ml</span>
-                          <Badge>UGX {scent.revenue.toLocaleString()}</Badge>
+                          <span className="text-sm text-muted-foreground">{(scent.ml || 0)} ml</span>
+                          <Badge>UGX {(scent.revenue || 0).toLocaleString()}</Badge>
                         </div>
                       </div>
                     ))}

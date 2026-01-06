@@ -16,9 +16,9 @@ const PerfumeRevenueReport = () => {
   const today = format(new Date(), "yyyy-MM-dd");
   const { isAdmin, departmentId: userDepartmentId } = useUserRole();
   const [selectedDepartmentId, setSelectedDepartmentId] = useState<string | null>(null);
-  
+
   const departmentId = isAdmin && selectedDepartmentId ? selectedDepartmentId : userDepartmentId;
-  
+
   // Enable realtime updates
   useFinancialRealtime(departmentId);
 
@@ -56,7 +56,7 @@ const PerfumeRevenueReport = () => {
     queryFn: async () => {
       const startOfDay = `${today}T00:00:00`;
       const endOfDay = `${today}T23:59:59`;
-      
+
       let salesQuery = supabase.from("sales").select("*, sale_items(*)").gte("created_at", startOfDay).lte("created_at", endOfDay).eq("status", "completed");
       if (departmentId) salesQuery = salesQuery.eq("department_id", departmentId);
       const { data: sales } = await salesQuery;
@@ -240,7 +240,7 @@ const PerfumeRevenueReport = () => {
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">Total Revenue:</span>
                 <span className="text-2xl font-bold">
-                  UGX {safeRevenueData.retailRevenue.toLocaleString()}
+                  UGX {(safeRevenueData.retailRevenue || 0).toLocaleString()}
                 </span>
               </div>
               <div className="flex justify-between items-center">
@@ -267,7 +267,7 @@ const PerfumeRevenueReport = () => {
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">Total Revenue:</span>
                 <span className="text-2xl font-bold">
-                  UGX {safeRevenueData.wholesaleRevenue.toLocaleString()}
+                  UGX {(safeRevenueData.wholesaleRevenue || 0).toLocaleString()}
                 </span>
               </div>
               <div className="flex justify-between items-center">
@@ -297,7 +297,7 @@ const PerfumeRevenueReport = () => {
               <div className="flex justify-between items-center pb-4 border-b">
                 <span className="font-semibold">Total Expenses:</span>
                 <span className="text-2xl font-bold text-destructive">
-                  UGX {safeRevenueData.totalExpenses.toLocaleString()}
+                  UGX {(safeRevenueData.totalExpenses || 0).toLocaleString()}
                 </span>
               </div>
               {safeRevenueData.expenses.length > 0 ? (
@@ -332,7 +332,7 @@ const PerfumeRevenueReport = () => {
               <div className="flex justify-between items-center pb-4 border-b">
                 <span className="font-semibold">Total Difference:</span>
                 <span className={`text-2xl font-bold ${safeRevenueData.totalDifference >= 0 ? 'text-green-600' : 'text-destructive'}`}>
-                  UGX {safeRevenueData.totalDifference.toLocaleString()}
+                  UGX {(safeRevenueData.totalDifference || 0).toLocaleString()}
                 </span>
               </div>
               {safeRevenueData.reconciliations.length > 0 ? (
@@ -386,7 +386,7 @@ const PerfumeRevenueReport = () => {
               <div className="flex justify-between items-center pb-4 border-b">
                 <span className="font-semibold">Total Voided Amount:</span>
                 <span className="text-2xl font-bold text-destructive">
-                  UGX {safeRevenueData.totalVoidedAmount.toLocaleString()}
+                  UGX {(safeRevenueData.totalVoidedAmount || 0).toLocaleString()}
                 </span>
               </div>
               <div className="flex justify-between items-center">
@@ -443,19 +443,19 @@ const PerfumeRevenueReport = () => {
                 <div>
                   <p className="text-sm text-muted-foreground">Credits Out</p>
                   <p className="text-xl font-bold text-destructive">
-                    UGX {safeRevenueData.creditsOut.toLocaleString()}
+                    UGX {(safeRevenueData.creditsOut || 0).toLocaleString()}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Credits In</p>
                   <p className="text-xl font-bold text-green-600">
-                    UGX {safeRevenueData.creditsIn.toLocaleString()}
+                    UGX {(safeRevenueData.creditsIn || 0).toLocaleString()}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Net Credits</p>
                   <p className={`text-xl font-bold ${safeRevenueData.netCredits >= 0 ? 'text-green-600' : 'text-destructive'}`}>
-                    UGX {safeRevenueData.netCredits.toLocaleString()}
+                    UGX {(safeRevenueData.netCredits || 0).toLocaleString()}
                   </p>
                 </div>
               </div>
