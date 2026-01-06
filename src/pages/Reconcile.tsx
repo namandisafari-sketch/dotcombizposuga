@@ -12,10 +12,13 @@ import { toast } from "sonner";
 import { useState } from "react";
 import { format } from "date-fns";
 import { Calculator } from "lucide-react";
+import { useDepartment } from "@/contexts/DepartmentContext";
 
 const Reconcile = () => {
   const queryClient = useQueryClient();
-  const { isAdmin, departmentId } = useUserRole();
+  const { isAdmin } = useUserRole();
+  const { selectedDepartmentId } = useDepartment();
+  const departmentId = selectedDepartmentId;
   const [formData, setFormData] = useState({
     cashier_name: "",
     date: format(new Date(), "yyyy-MM-dd"),
@@ -190,10 +193,10 @@ const Reconcile = () => {
                   <div className="p-3 bg-muted rounded-lg">
                     <p className="text-sm font-medium">Difference:</p>
                     <p className={`text-2xl font-bold ${difference === 0
-                        ? "text-success"
-                        : difference > 0
-                          ? "text-warning"
-                          : "text-destructive"
+                      ? "text-success"
+                      : difference > 0
+                        ? "text-warning"
+                        : "text-destructive"
                       }`}>
                       {difference.toLocaleString()} UGX
                     </p>

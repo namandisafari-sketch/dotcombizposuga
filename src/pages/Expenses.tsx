@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useDepartment } from "@/contexts/DepartmentContext";
 import { toast } from "sonner";
 import { useState } from "react";
 import { format } from "date-fns";
@@ -14,7 +15,9 @@ import { expenseSchema } from "@/lib/validation";
 
 const Expenses = () => {
   const queryClient = useQueryClient();
-  const { isAdmin, departmentId } = useUserRole();
+  const { isAdmin } = useUserRole();
+  const { selectedDepartmentId } = useDepartment();
+  const departmentId = selectedDepartmentId;
   const [formData, setFormData] = useState({
     description: "",
     category: "",
@@ -41,7 +44,7 @@ const Expenses = () => {
     mutationFn: async (data: typeof formData) => {
       try {
         const validated = expenseSchema.parse(data);
-        
+
         const { error } = await supabase
           .from("expenses")
           .insert({

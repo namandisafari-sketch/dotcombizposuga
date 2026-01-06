@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useDepartment } from "@/contexts/DepartmentContext";
 import { toast } from "sonner";
 import { useState } from "react";
 import { format } from "date-fns";
@@ -17,7 +18,9 @@ import { AlertCircle, CheckCircle, XCircle, Clock } from "lucide-react";
 
 const SuspendedRevenue = () => {
   const queryClient = useQueryClient();
-  const { isAdmin, departmentId } = useUserRole();
+  const { isAdmin } = useUserRole();
+  const { selectedDepartmentId } = useDepartment();
+  const departmentId = selectedDepartmentId;
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<any>(null);
@@ -33,10 +36,11 @@ const SuspendedRevenue = () => {
     queryKey: ["suspended-revenue", departmentId],
     queryFn: async () => {
       let query = supabase.from("suspended_revenue").select("*").order("created_at", { ascending: false });
-      if (!isAdmin && departmentId) query = query.eq("department_id", departmentId);
+      if (departmentId) query = query.eq("department_id", departmentId);
       const { data } = await query;
       return data || [];
     },
+    enabled: !!departmentId,
   });
 
   const createMutation = useMutation({
