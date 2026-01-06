@@ -30,7 +30,7 @@ interface DepartmentFinancials {
 
 // Helper function to check if report should be sent based on frequency and configured time
 function shouldSendScheduledReport(
-  frequency: string, 
+  frequency: string,
   configuredTime: string, // Format: "HH:MM" (e.g., "08:00")
   lastSentAt: string | null
 ): { shouldSend: boolean; period: string; reason: string } {
@@ -39,35 +39,35 @@ function shouldSendScheduledReport(
   const currentMinute = now.getUTCMinutes();
   const currentDay = now.getUTCDay(); // 0 = Sunday
   const currentDate = now.getUTCDate();
-  
+
   // Parse configured time (default to 08:00 if invalid)
   const [configHourStr, configMinStr] = (configuredTime || "08:00").split(":");
   const configHour = parseInt(configHourStr, 10) || 8;
   const configMin = parseInt(configMinStr, 10) || 0;
-  
+
   // Check if current hour matches configured hour (with 1-hour window for cron timing)
-  const isCorrectHour = currentHour === configHour || 
+  const isCorrectHour = currentHour === configHour ||
     (currentHour === configHour + 1 && currentMinute < 30); // Allow 30 min buffer
-  
+
   if (!isCorrectHour) {
-    return { 
-      shouldSend: false, 
-      period: "current", 
-      reason: `Not the scheduled time. Current: ${currentHour}:${currentMinute} UTC, Configured: ${configHour}:${configMin} UTC` 
+    return {
+      shouldSend: false,
+      period: "current",
+      reason: `Not the scheduled time. Current: ${currentHour}:${currentMinute} UTC, Configured: ${configHour}:${configMin} UTC`
     };
   }
-  
+
   // Check if already sent today
   if (lastSentAt) {
     const lastSent = new Date(lastSentAt);
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const lastSentDay = new Date(lastSent.getFullYear(), lastSent.getMonth(), lastSent.getDate());
-    
+
     if (lastSentDay >= today) {
       return { shouldSend: false, period: "current", reason: "Report already sent today" };
     }
   }
-  
+
   // Check frequency rules
   switch (frequency) {
     case "daily":
@@ -99,7 +99,7 @@ const handler = async (req: Request): Promise<Response> => {
     let reportPeriod = "current"; // current, previous, ytd
     let scheduledMode = false; // Called by cron job
     let forceMode = false; // Force send regardless of schedule
-    
+
     try {
       const body = await req.json();
       testMode = body?.testMode === true;
@@ -150,13 +150,13 @@ const handler = async (req: Request): Promise<Response> => {
       const frequency = settings?.report_email_frequency || "daily";
       const configuredTime = settings?.report_email_time || "08:00";
       const lastSentAt = settings?.settings_json?.last_report_sent_at || null;
-      
+
       const { shouldSend, period, reason } = shouldSendScheduledReport(frequency, configuredTime, lastSentAt);
-      
+
       if (!shouldSend) {
         console.log(`Scheduled report check: ${reason}`);
         return new Response(
-          JSON.stringify({ 
+          JSON.stringify({
             message: reason,
             frequency,
             configuredTime,
@@ -165,7 +165,7 @@ const handler = async (req: Request): Promise<Response> => {
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      
+
       // Use the period determined by schedule
       reportPeriod = period;
       console.log(`Scheduled report: ${reason} - Sending ${frequency} report for period: ${reportPeriod}`);
@@ -235,7 +235,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Filter sales by status
     const validSales = (sales || []).filter((s: any) => s.status !== 'voided');
-    
+
     // Filter expenses by date range
     const filteredExpenses = (expenses || []).filter((e: any) => {
       const expenseDate = new Date(e.expense_date || e.created_at);
@@ -258,17 +258,17 @@ const handler = async (req: Request): Promise<Response> => {
       const mobileMoneySales = deptSales.filter((s: any) => s.payment_method === 'mobile_money').reduce((sum: number, s: any) => sum + Number(s.total || 0), 0);
       const cardSales = deptSales.filter((s: any) => s.payment_method === 'card').reduce((sum: number, s: any) => sum + Number(s.total || 0), 0);
       const expenseTotal = deptExpenses.reduce((sum: number, e: any) => sum + Number(e.amount || 0), 0);
-      
+
       // COGS estimation (60% of revenue or based on cost prices if available)
       const cogs = revenue * 0.6;
-      
+
       // Inventory value
       const inventory = deptProducts.reduce((sum: number, p: any) => {
         const stock = Number(p.stock || 0);
         const costPrice = Number(p.cost_price || p.price * 0.6 || 0);
         return sum + (stock * costPrice);
       }, 0);
-      
+
       // Customer receivables
       const receivables = deptCustomers.reduce((sum: number, c: any) => sum + Number(c.outstanding_balance || 0), 0);
 
@@ -276,7 +276,7 @@ const handler = async (req: Request): Promise<Response> => {
       const saleIds = deptSales.map((s: any) => s.id);
       const deptSaleItems = (saleItems || []).filter((si: any) => saleIds.includes(si.sale_id));
       const itemMap = new Map<string, { quantity: number; revenue: number }>();
-      
+
       for (const item of deptSaleItems) {
         const existing = itemMap.get(item.name) || { quantity: 0, revenue: 0 };
         itemMap.set(item.name, {
@@ -284,7 +284,7 @@ const handler = async (req: Request): Promise<Response> => {
           revenue: existing.revenue + (item.total || 0)
         });
       }
-      
+
       const topItems = Array.from(itemMap.entries())
         .map(([name, data]) => ({ name, ...data }))
         .sort((a, b) => b.revenue - a.revenue)
@@ -346,23 +346,23 @@ const handler = async (req: Request): Promise<Response> => {
     // Balance Sheet calculations
     const latestReconciliation = reconciliations?.[0];
     const cashOnHand = latestReconciliation ? Number(latestReconciliation.reported_cash || 0) : 0;
-    
+
     const inventoryValue = (products || []).reduce((sum: number, p: any) => {
       const stock = Number(p.stock || 0);
       const costPrice = Number(p.cost_price || p.price * 0.6 || 0);
       return sum + (stock * costPrice);
     }, 0);
-    
+
     const accountsReceivable = (customers || []).reduce((sum: number, c: any) => sum + Number(c.outstanding_balance || 0), 0);
-    
+
     const totalCreditsReceivable = (credits || [])
       .filter((c: any) => c.status !== 'settled' && c.transaction_type === 'interdepartmental')
       .reduce((sum: number, c: any) => sum + Number(c.amount || 0) - Number(c.paid_amount || 0), 0);
-    
+
     const totalCreditsPayable = (credits || [])
       .filter((c: any) => c.status !== 'settled' && c.transaction_type === 'customer_credit')
       .reduce((sum: number, c: any) => sum + Number(c.amount || 0) - Number(c.paid_amount || 0), 0);
-    
+
     const totalCurrentAssets = cashOnHand + (totalMobileMoneySales + totalCardSales) + accountsReceivable + inventoryValue + totalCreditsReceivable;
     const retainedEarnings = totalCurrentAssets - totalCreditsPayable;
 
@@ -831,7 +831,7 @@ const handler = async (req: Request): Promise<Response> => {
         Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: `${settings?.business_name || "Business"} <reports@dotcombrothersltd.com>`,
+        from: `${settings?.business_name || "Business"} <onboarding@resend.dev>`,
         to: [adminEmail],
         subject: `📊 Financial Reports - ${periodLabel} | Revenue: ${formatCurrency(totalRevenue)} | Net Income: ${formatCurrency(netIncome)}`,
         html: emailHtml,
@@ -855,18 +855,18 @@ const handler = async (req: Request): Promise<Response> => {
         last_report_sent_at: now.toISOString(),
         last_report_period: periodLabel
       };
-      
+
       await supabase
         .from("settings")
         .update({ settings_json: updatedJson })
         .is("department_id", null);
-      
+
       console.log("Updated last report sent timestamp");
     }
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
+      JSON.stringify({
+        success: true,
         message: "Financial reports sent successfully",
         emailId: responseData.id,
         period: periodLabel,
