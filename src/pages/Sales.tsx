@@ -833,6 +833,14 @@ const Sales = () => {
         }
       }
 
+      // Use selected sale date with current time if it's a past date
+      const selectedDate = new Date(saleDate);
+      const now = new Date();
+      const isToday = saleDate === now.toISOString().split('T')[0];
+      const saleTimestamp = isToday
+        ? now.toISOString()
+        : new Date(selectedDate.setHours(now.getHours(), now.getMinutes(), now.getSeconds())).toISOString();
+
       // Create sale data with business info for receipt
       const mockSaleData = {
         id: `sale_${Date.now()}`, // Generate a temporary ID
@@ -885,14 +893,7 @@ const Sales = () => {
         return mockReceipt;
       }
 
-      // Insert sale into database (only if not demo mode)
-      // Use selected sale date with current time if it's a past date
-      const selectedDate = new Date(saleDate);
-      const now = new Date();
-      const isToday = saleDate === now.toISOString().split('T')[0];
-      const saleTimestamp = isToday
-        ? now.toISOString()
-        : new Date(selectedDate.setHours(now.getHours(), now.getMinutes(), now.getSeconds())).toISOString();
+
 
       const salePayload = {
         sale: {
