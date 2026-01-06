@@ -4,7 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import { DepartmentProvider } from "./contexts/DepartmentContext";
 import { ThemeProvider } from "./components/ThemeProvider";
@@ -146,7 +146,7 @@ const App = () => (
             <DemoModeProvider>
               <DepartmentProvider>
                 <OfflineSyncIndicator />
-                
+
                 <Suspense fallback={<PageLoader />}>
                   <Routes>
                     <Route path="/" element={<LandingPage />} />
@@ -197,6 +197,10 @@ const App = () => (
                     {/* Public routes for customer self-service */}
                     <Route path="/customer-scent-check-in" element={<CustomerScentCheckIn />} />
                     <Route path="/customer-scent-memory" element={<CustomerScentMemory />} />
+                    {/* Redirect /home to root */}
+                    <Route path="/home" element={<Navigate to="/" replace />} />
+                    {/* Catch-all route for 404 */}
+                    <Route path="*" element={<NotFound />} />
                   </Routes>
                 </Suspense>
               </DepartmentProvider>
